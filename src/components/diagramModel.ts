@@ -57,6 +57,34 @@ export function formatValue(
   return String(cell.value);
 }
 
+// Flatten a snapshot into address -> value (undefined = uninitialized).
+function snapshotValues(snap: MemorySnapshot): Map<number, number | undefined> {
+  const m = new Map<number, number | undefined>();
+  const add = (blocks: Block[]) => {
+    for (const b of blocks) for (const c of b.cells) m.set(c.address, c.value);
+  };
+  add(snap.readonly);
+  add(snap.globals);
+  add(snap.heap);
+  for (const f of snap.frames) add(f.blocks);
+  return m;
+}
+
+// Addresses whose cells are new or whose value changed between two steps —
+// used to highlight what the statement just executed actually did.
+export function diffSnapshots(
+  prev: MemorySnapshot | null,
+  curr: MemorySnapshot
+): Set<number> {
+  const changed = new Set<number>();
+  if (!prev) return changed; // first step: nothing to compare against
+  const before = snapshotValues(prev);
+  for (const [addr, value] of snapshotValues(curr)) {
+    if (!before.has(addr) || before.get(addr) !== value) changed.add(addr);
+  }
+  return changed;
+}
+
 export function buildGroups(snap: MemorySnapshot): {
   groups: DiagramGroup[];
   height: number;

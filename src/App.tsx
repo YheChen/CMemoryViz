@@ -4,6 +4,7 @@ import { MemoryDiagram } from "./components/MemoryDiagram";
 import { ExamDiagram } from "./components/ExamDiagram";
 import { Controls } from "./components/Controls";
 import { run, RunResult } from "./interpreter/interpreter";
+import { diffSnapshots } from "./components/diagramModel";
 
 const SAMPLES: Record<string, string> = {
   "sumpairs (midterm)": `int *sumpairs(int *a, int size) {
@@ -152,6 +153,13 @@ export default function App() {
   const current = stepIndex >= 0 && stepIndex < steps.length ? steps[stepIndex] : null;
   const snapshot = current?.snapshot ?? null;
 
+  // Cells changed by the previous statement (what "just happened").
+  const changedAddrs = useMemo(() => {
+    if (!snapshot) return undefined;
+    const prev = stepIndex > 0 ? steps[stepIndex - 1].snapshot : null;
+    return diffSnapshots(prev, snapshot);
+  }, [snapshot, stepIndex, steps]);
+
   const seek = (i: number) => {
     if (steps.length === 0) return;
     setStepIndex(Math.max(0, Math.min(steps.length - 1, i)));
@@ -244,7 +252,11 @@ export default function App() {
               functionAddrs={result?.functionAddrs}
             />
           ) : (
-            <MemoryDiagram snapshot={snapshot} functionAddrs={result?.functionAddrs} />
+            <MemoryDiagram
+              snapshot={snapshot}
+              functionAddrs={result?.functionAddrs}
+              changedAddrs={changedAddrs}
+            />
           )}
           {output && (
             <div className="stdout">

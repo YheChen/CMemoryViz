@@ -34,6 +34,8 @@ const BASE_WIDTH = CHANNEL_BASE + 24;
 interface Props {
   snapshot: MemorySnapshot | null;
   functionAddrs?: Record<number, string>;
+  // Cells that changed in the step being shown (highlighted).
+  changedAddrs?: Set<number>;
 }
 
 interface Arrow {
@@ -154,7 +156,7 @@ function exportPng(svgEl: SVGSVGElement) {
 
 // ---------------------------------------------------------------------------
 
-export function MemoryDiagram({ snapshot, functionAddrs }: Props) {
+export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const built = useMemo(() => (snapshot ? buildGroups(snapshot) : null), [snapshot]);
 
@@ -257,6 +259,7 @@ export function MemoryDiagram({ snapshot, functionAddrs }: Props) {
                   isPointer(r.cell.type) && r.cell.value !== undefined
                     ? functionAddrs?.[r.cell.value]
                     : undefined;
+                const changed = changedAddrs?.has(r.cell.address);
                 return (
                   <g key={ri} className="cell-row">
                     <rect
@@ -265,9 +268,13 @@ export function MemoryDiagram({ snapshot, functionAddrs }: Props) {
                       width={X.valueEnd - X.addr + 12}
                       height={ROW_H - 6}
                       rx={3}
-                      className={
-                        r.cell.value === undefined ? "cell-box cell-uninit" : "cell-box"
-                      }
+                      className={[
+                        "cell-box",
+                        r.cell.value === undefined ? "cell-uninit" : "",
+                        changed ? "cell-changed" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                     />
                     <text x={X.addr} y={r.y + 20} className="addr">
                       {hex(r.cell.address)}
