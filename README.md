@@ -24,7 +24,7 @@ src/interpreter/
   memory.ts       sections, deterministic "clean" address allocator, typed cells
   interpreter.ts  evaluator; records a memory snapshot before every statement
 src/components/
-  CodeEditor.tsx    Monaco editor (VSCode look) + toggleable Vim mode
+  CodeEditor.tsx    Monaco editor (VSCode look), breakpoints, error squiggles
   MemoryDiagram.tsx SVG table renderer + pointer arrows
   Controls.tsx      run / step / scrub the execution trace
 ```

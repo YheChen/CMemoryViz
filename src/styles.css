@@ -172,15 +172,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-.vim-status {
-  font-family: monospace;
-  font-size: 12px;
-  padding: 2px 8px;
-  background: #11111b;
-  color: var(--accent-2);
-  min-height: 20px;
-}
-
 /* Current line highlight (Monaco decorations) */
 .current-line-hl {
   background: rgba(137, 180, 250, 0.16);
