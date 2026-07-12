@@ -83,15 +83,19 @@ npm run build
 - **Arrow routing** assigns each pointer arrow its own channel (fewest
   crossings).
 - **Export** the diagram as SVG or PNG for problem sets.
-- **Exam mode**: values and labels become blank inputs — fill in the diagram
-  at any step, then Check (lenient grading: hex case, `NULL`/`0`, `???`,
-  quoted or bare chars) or Reveal.
+- **Exam mode**: values and labels become blank inputs and pointer arrows
+  must be drawn by hand (◉ handles) — fill in the diagram at any step, then
+  Check (lenient grading: hex case, `NULL`/`0`, `???`, quoted or bare chars;
+  extra arrows flagged) or Reveal.
+- **Step-diff highlighting**: cells created or changed by the statement that
+  just ran get a blue tint, so each step's effect is visible at a glance.
+- **🔗 Share**: one click copies a link that reproduces the exact code, step,
+  breakpoints and exam mode — send a classmate "the state before line 8".
 - Built-in **sample programs** (menu, top right) covering every feature.
 
 ## Roadmap
 
 - Watch expressions / hover a variable to highlight its cell
-- Diff view: highlight cells changed since the previous step
-- Shareable links (encode the program in the URL)
 - More of libc: `strcpy`, `strcat`, `memcpy`, `realloc`
+- Problem-set challenge bank (past-exam programs opening in exam mode)
 - Structs returned by value, unions, `typedef`
