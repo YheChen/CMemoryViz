@@ -237,6 +237,12 @@ body {
   fill: var(--cell-uninit);
   stroke-dasharray: 4 3;
 }
+/* Cell changed by the statement that just executed */
+.cell-changed {
+  fill: rgba(137, 180, 250, 0.22);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
 .addr {
   fill: var(--muted);
 }
