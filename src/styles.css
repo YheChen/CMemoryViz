@@ -383,6 +383,84 @@ body {
   font-style: italic;
 }
 
+/* Exam arrows */
+.exam-wrap {
+  position: relative;
+  display: inline-block;
+  padding-right: 80px; /* room for the overlay */
+}
+.exam-arrow-overlay {
+  position: absolute;
+  top: 0;
+  color: var(--arrow);
+  pointer-events: none;
+  overflow: visible;
+}
+.exam-arrow-line {
+  stroke: var(--arrow);
+  stroke-width: 1.5;
+}
+.exam-arrow-wrong {
+  stroke: var(--danger);
+  stroke-dasharray: 5 3;
+}
+.exam-arrow-th,
+.exam-arrow-td {
+  text-align: center;
+}
+.exam-arrow-handle {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+}
+.exam-arrow-handle:hover {
+  border-color: var(--arrow);
+  color: var(--arrow);
+}
+.exam-arrow-armed {
+  border-color: var(--arrow);
+  color: var(--arrow);
+  background: rgba(243, 139, 168, 0.15);
+  box-shadow: 0 0 5px rgba(243, 139, 168, 0.5);
+}
+.exam-arrow-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.exam-arrow-chip {
+  font-family: "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.exam-chip-bad {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.exam-chip-x {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+.exam-chip-x:hover {
+  color: var(--danger);
+}
+
 /* Errors + stdout */
 .error-banner {
   background: rgba(243, 139, 168, 0.15);

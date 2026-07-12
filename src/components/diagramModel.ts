@@ -85,6 +85,38 @@ export function diffSnapshots(
   return changed;
 }
 
+export interface PointerArrow {
+  from: number; // address of the pointer cell
+  to: number; // address it points at
+}
+
+// The arrows a student is expected to draw: every pointer cell holding a
+// valid address of another visible cell. NULL, uninitialized, dangling and
+// function pointers draw nothing.
+export function expectedPointerArrows(
+  snap: MemorySnapshot,
+  functionAddrs?: Record<number, string>
+): PointerArrow[] {
+  const allCells: Cell[] = [];
+  const collect = (blocks: Block[]) => {
+    for (const b of blocks) allCells.push(...b.cells);
+  };
+  collect(snap.readonly);
+  collect(snap.globals);
+  collect(snap.heap);
+  for (const f of snap.frames) collect(f.blocks);
+
+  const addrs = new Set(allCells.map((c) => c.address));
+  const arrows: PointerArrow[] = [];
+  for (const c of allCells) {
+    if (!isPointer(c.type) || c.value === undefined || c.value === 0) continue;
+    if (functionAddrs?.[c.value]) continue;
+    if (!addrs.has(c.value)) continue; // dangling — nothing to point at
+    arrows.push({ from: c.address, to: c.value });
+  }
+  return arrows;
+}
+
 export function buildGroups(snap: MemorySnapshot): {
   groups: DiagramGroup[];
   height: number;
