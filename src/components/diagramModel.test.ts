@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { run } from "../interpreter/interpreter";
-import { diffSnapshots } from "./diagramModel";
+import { diffSnapshots, expectedPointerArrows } from "./diagramModel";
 
 describe("diffSnapshots", () => {
   const r = run(`int main() {
@@ -43,5 +43,42 @@ describe("diffSnapshots", () => {
       diffSnapshots(r2.steps[i].snapshot, s.snapshot).size
     );
     expect(diffs).toContain(0); // the `if` step changed nothing
+  });
+});
+
+describe("expectedPointerArrows", () => {
+  it("sumpairs at return: a->arr and result->heap, pairs (???) draws nothing", () => {
+    const r = run(`int *sumpairs(int *a, int size) {
+      int *result = malloc(size / 2 * sizeof(int));
+      for (int i = 0; i < size / 2; i++) {
+          result[i] = a[i * 2] + a[i * 2 + 1];
+      }
+      return result;
+    }
+    int main() {
+      int arr[] = {1, 2, 3, 4};
+      int *pairs = sumpairs(arr, 4);
+      free(pairs);
+      return 0;
+    }`);
+    const snap = r.steps.find((s) => s.note === "return")!.snapshot;
+    const arrows = expectedPointerArrows(snap, r.functionAddrs);
+    expect(arrows).toEqual([
+      { from: 0x45c, to: 0x444 }, // a -> arr
+      { from: 0x464, to: 0x240 }, // result -> heap block
+    ]);
+  });
+
+  it("NULL, dangling, and function pointers draw nothing", () => {
+    const r = run(`int add(int a, int b) { return a + b; }
+    int main() {
+      int (*fp)(int, int) = add;
+      int *n = NULL;
+      int *d = malloc(4);
+      free(d);
+      return 0;
+    }`);
+    const snap = r.steps[r.steps.length - 1].snapshot;
+    expect(expectedPointerArrows(snap, r.functionAddrs)).toEqual([]);
   });
 });
