@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CodeEditor } from "./components/CodeEditor";
 import { MemoryDiagram } from "./components/MemoryDiagram";
 import { ExamDiagram } from "./components/ExamDiagram";
 import { Controls } from "./components/Controls";
 import { run, RunResult } from "./interpreter/interpreter";
 import { diffSnapshots } from "./components/diagramModel";
+import { buildShareUrl, decodeShareState } from "./share";
 
 const SAMPLES: Record<string, string> = {
   "sumpairs (midterm)": `int *sumpairs(int *a, int size) {
@@ -114,8 +115,44 @@ export default function App() {
   const [result, setResult] = useState<RunResult | null>(null);
   const [stepIndex, setStepIndex] = useState(-1);
   const [breakpoints, setBreakpoints] = useState<Set<number>>(new Set());
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<number | undefined>(undefined);
 
   const steps = result?.steps ?? [];
+
+  // Restore a shared link: #<base64url state> -> load, run, land on the step.
+  useEffect(() => {
+    const shared = decodeShareState(location.hash);
+    if (!shared) return;
+    setSource(shared.src);
+    setBreakpoints(new Set(shared.bps ?? []));
+    setExamMode(!!shared.exam);
+    const r = run(shared.src);
+    setResult(r);
+    if (r.steps.length > 0) {
+      const target = shared.step ?? r.steps.length - 1;
+      setStepIndex(Math.max(0, Math.min(r.steps.length - 1, target)));
+    }
+  }, []);
+
+  const doShare = async () => {
+    const url = buildShareUrl({
+      v: 1,
+      src: source,
+      step: stepIndex >= 0 ? stepIndex : undefined,
+      bps: breakpoints.size ? [...breakpoints] : undefined,
+      exam: examMode || undefined,
+    });
+    history.replaceState(null, "", url); // reflect it in the address bar too
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.clearTimeout(copyTimer.current);
+      copyTimer.current = window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked — the URL is in the address bar to copy manually.
+    }
+  };
 
   const doRun = () => {
     const r = run(source);
@@ -193,6 +230,13 @@ export default function App() {
           <span className="tagline">C memory model visualizer · CSC 209 style</span>
         </div>
         <div className="topbar-right">
+          <button
+            className="btn"
+            onClick={doShare}
+            title="Copy a link that reproduces this exact code, step and breakpoints"
+          >
+            {copied ? "✓ Copied!" : "🔗 Share"}
+          </button>
           <select
             className="sample-select"
             defaultValue={DEFAULT_SAMPLE}
