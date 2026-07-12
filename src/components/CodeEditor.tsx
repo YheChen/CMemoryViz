@@ -1,17 +1,13 @@
-// Monaco-based C editor. Monaco gives us the VSCode look for free; monaco-vim
-// layers a Vim mode on top, toggleable at runtime. Clicking the gutter toggles
-// breakpoints; parse/runtime errors surface as squiggles.
+// Monaco-based C editor (the VSCode editor component). Clicking the gutter
+// toggles breakpoints; parse/runtime errors surface as squiggles.
 
 import { useEffect, useRef } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-// @ts-ignore - monaco-vim ships without types
-import { initVimMode } from "monaco-vim";
 
 interface Props {
   value: string;
   onChange: (value: string) => void;
-  vim: boolean;
   highlightLine: number | null;
   breakpoints: Set<number>;
   onToggleBreakpoint: (line: number) => void;
@@ -21,7 +17,6 @@ interface Props {
 export function CodeEditor({
   value,
   onChange,
-  vim,
   highlightLine,
   breakpoints,
   onToggleBreakpoint,
@@ -29,8 +24,6 @@ export function CodeEditor({
 }: Props) {
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
-  const vimModeRef = useRef<{ dispose: () => void } | null>(null);
-  const statusRef = useRef<HTMLDivElement | null>(null);
   const lineDecorations = useRef<string[]>([]);
   const bpDecorations = useRef<string[]>([]);
   // Keep the latest callback without re-registering the mouse listener.
@@ -40,7 +33,6 @@ export function CodeEditor({
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    applyVim(vim);
     // Gutter click -> toggle breakpoint.
     editor.onMouseDown((e) => {
       const t = e.target;
@@ -53,20 +45,6 @@ export function CodeEditor({
     });
     renderBreakpoints();
   };
-
-  function applyVim(enable: boolean) {
-    if (!editorRef.current || !statusRef.current) return;
-    if (enable && !vimModeRef.current) {
-      vimModeRef.current = initVimMode(editorRef.current, statusRef.current);
-    } else if (!enable && vimModeRef.current) {
-      vimModeRef.current.dispose();
-      vimModeRef.current = null;
-    }
-  }
-
-  useEffect(() => {
-    applyVim(vim);
-  }, [vim]);
 
   // Highlight the line the interpreter is about to execute.
   useEffect(() => {
@@ -150,7 +128,6 @@ export function CodeEditor({
           automaticLayout: true,
         }}
       />
-      <div ref={statusRef} className="vim-status" />
     </div>
   );
 }

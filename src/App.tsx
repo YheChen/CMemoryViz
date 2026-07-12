@@ -109,7 +109,6 @@ const DEFAULT_SAMPLE = "sumpairs (midterm)";
 
 export default function App() {
   const [source, setSource] = useState(SAMPLES[DEFAULT_SAMPLE]);
-  const [vim, setVim] = useState(false);
   const [examMode, setExamMode] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [stepIndex, setStepIndex] = useState(-1);
@@ -206,10 +205,6 @@ export default function App() {
             />
             Exam mode
           </label>
-          <label className="toggle">
-            <input type="checkbox" checked={vim} onChange={(e) => setVim(e.target.checked)} />
-            Vim mode
-          </label>
         </div>
       </header>
 
@@ -229,7 +224,6 @@ export default function App() {
           <CodeEditor
             value={source}
             onChange={onSourceChange}
-            vim={vim}
             highlightLine={highlightLine}
             breakpoints={breakpoints}
             onToggleBreakpoint={toggleBreakpoint}
