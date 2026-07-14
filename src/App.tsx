@@ -106,6 +106,41 @@ int main() {
     return 0;
 }
 `,
+  "2D dynamic array (int **)": `int main() {
+    int rows = 2, cols = 3;
+
+    // An array of row pointers, each pointing at its own heap row.
+    int **grid = malloc(rows * sizeof(int *));
+    for (int i = 0; i < rows; i++) {
+        grid[i] = malloc(cols * sizeof(int));
+        for (int j = 0; j < cols; j++) {
+            grid[i][j] = i * cols + j;
+        }
+    }
+
+    // Free the rows, then the array of pointers.
+    for (int i = 0; i < rows; i++) {
+        free(grid[i]);
+    }
+    free(grid);
+    return 0;
+}
+`,
+  "realloc (block moves)": `int main() {
+    int *a = malloc(2 * sizeof(int));
+    a[0] = 1;
+    a[1] = 2;
+
+    // Grow the block: realloc copies the old values into a new, larger
+    // block and frees the old one, so 'a' now points somewhere new.
+    a = realloc(a, 4 * sizeof(int));
+    a[2] = 3;
+    a[3] = 4;
+
+    free(a);
+    return 0;
+}
+`,
 };
 
 const DEFAULT_SAMPLE = "sumpairs (midterm)";

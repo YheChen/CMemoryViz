@@ -264,6 +264,30 @@ export class MemoryModel {
     return block;
   }
 
+  // realloc: allocate a fresh block, copy the overlapping prefix, and free the
+  // old one. We always relocate (rather than growing in place) so the diagram
+  // shows the block move — the whole point of the "realloc can invalidate your
+  // pointer" lesson. Returns the new block.
+  reallocHeap(oldAddress: number, elemType: CType, count: number): Block {
+    const old = this.blocks.find(
+      (b) => b.section === "heap" && b.address === oldAddress
+    );
+    if (!old) {
+      const freed = this.freedRanges.some((r) => r.start === oldAddress);
+      throw new Error(
+        freed
+          ? `realloc() of already-freed pointer ${hex(oldAddress)}`
+          : `realloc() of invalid pointer ${hex(oldAddress)} (not the start of a heap block)`
+      );
+    }
+    const oldValues = old.cells.map((c) => c.value);
+    const block = this.allocHeap(elemType, count);
+    const n = Math.min(oldValues.length, block.cells.length);
+    for (let i = 0; i < n; i++) block.cells[i].value = oldValues[i];
+    this.freeHeap(oldAddress);
+    return block;
+  }
+
   freeHeap(address: number): void {
     if (address === 0) return; // free(NULL) is a no-op
     if (this.freedRanges.some((r) => r.start === address)) {
