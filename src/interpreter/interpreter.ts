@@ -17,11 +17,31 @@ export interface Step {
   output: string;
 }
 
+// A single heap allocation/deallocation, in execution order.
+export interface HeapEvent {
+  kind: "alloc" | "free";
+  fn: string; // "malloc", "calloc", "free", "realloc"
+  address: number;
+  size: number; // bytes (0 for a free)
+  line: number;
+  step: number; // trace step index this happened during
+}
+
+export interface HeapReport {
+  events: HeapEvent[];
+  leaks: { address: number; size: number; line: number }[];
+  totalAllocs: number;
+  totalBytes: number;
+  totalFreed: number; // count of successful frees
+  leakedBytes: number;
+}
+
 export interface RunResult {
   steps: Step[];
   output: string;
   // Pseudo-addresses assigned to functions (for function-pointer display).
   functionAddrs: Record<number, string>;
+  heap: HeapReport;
   error?: { message: string; line?: number };
 }
 
@@ -76,6 +96,7 @@ export function run(src: string): RunResult {
       steps: [],
       output: "",
       functionAddrs: {},
+      heap: { events: [], leaks: [], totalAllocs: 0, totalBytes: 0, totalFreed: 0, leakedBytes: 0 },
       error: { message: e.message, line: e.line },
     };
   }
@@ -94,7 +115,54 @@ class Interpreter {
   private output = "";
   private stepCount = 0;
 
+  // Heap lifecycle tracking (leaks / frees).
+  private heapEvents: HeapEvent[] = [];
+  private liveAllocs = new Map<number, { size: number; line: number }>();
+
   constructor(private program: A.Program) {}
+
+  private recordAlloc(fn: string, address: number, size: number, line: number) {
+    this.liveAllocs.set(address, { size, line });
+    this.heapEvents.push({
+      kind: "alloc",
+      fn,
+      address,
+      size,
+      line,
+      step: Math.max(0, this.steps.length - 1),
+    });
+  }
+
+  private recordFree(fn: string, address: number, line: number) {
+    this.liveAllocs.delete(address);
+    if (address !== 0) {
+      this.heapEvents.push({
+        kind: "free",
+        fn,
+        address,
+        size: 0,
+        line,
+        step: Math.max(0, this.steps.length - 1),
+      });
+    }
+  }
+
+  private buildHeapReport(): HeapReport {
+    const allocs = this.heapEvents.filter((e) => e.kind === "alloc");
+    const leaks = [...this.liveAllocs.entries()].map(([address, info]) => ({
+      address,
+      size: info.size,
+      line: info.line,
+    }));
+    return {
+      events: this.heapEvents,
+      leaks,
+      totalAllocs: allocs.length,
+      totalBytes: allocs.reduce((s, e) => s + e.size, 0),
+      totalFreed: this.heapEvents.filter((e) => e.kind === "free").length,
+      leakedBytes: leaks.reduce((s, l) => s + l.size, 0),
+    };
+  }
 
   run(): RunResult {
     const functionAddrs: Record<number, string> = {};
@@ -121,6 +189,7 @@ class Interpreter {
           steps: this.steps,
           output: this.output,
           functionAddrs,
+          heap: this.buildHeapReport(),
           error: { message: e.message, line: e.line },
         };
       } else {
@@ -128,11 +197,17 @@ class Interpreter {
           steps: this.steps,
           output: this.output,
           functionAddrs,
+          heap: this.buildHeapReport(),
           error: { message: String(e?.message ?? e) },
         };
       }
     }
-    return { steps: this.steps, output: this.output, functionAddrs };
+    return {
+      steps: this.steps,
+      output: this.output,
+      functionAddrs,
+      heap: this.buildHeapReport(),
+    };
   }
 
   private initGlobals() {
@@ -793,6 +868,7 @@ class Interpreter {
           const count = Math.max(1, Math.floor(bytes / this.mem.sizeOf(elem)));
           const block = this.mem.allocHeap(elem, count);
           if (name === "calloc") for (const c of block.cells) c.value = 0;
+          this.recordAlloc(name, block.address, block.size, expr.line);
           return { type: { kind: "pointer", to: elem }, value: block.address };
         }
         if (name === "free") {
@@ -802,6 +878,7 @@ class Interpreter {
           } catch (e: any) {
             throw new RuntimeError(e.message, expr.line);
           }
+          this.recordFree(name, p.value, expr.line);
           return { type: { kind: "void" }, value: 0 };
         }
         if (name === "printf") {

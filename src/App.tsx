@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CodeEditor } from "./components/CodeEditor";
 import { MemoryDiagram } from "./components/MemoryDiagram";
 import { ExamDiagram } from "./components/ExamDiagram";
+import { HeapReportPanel } from "./components/HeapReportPanel";
 import { Controls } from "./components/Controls";
 import { run, RunResult } from "./interpreter/interpreter";
 import { diffSnapshots } from "./components/diagramModel";
@@ -307,6 +308,12 @@ export default function App() {
               <div className="stdout-label">stdout</div>
               <pre>{output}</pre>
             </div>
+          )}
+          {result && (
+            <HeapReportPanel
+              report={result.heap}
+              currentStep={current ? stepIndex : null}
+            />
           )}
         </div>
       </div>
