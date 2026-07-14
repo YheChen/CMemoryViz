@@ -84,6 +84,82 @@ body {
   font-size: 13px;
 }
 
+/* Challenge picker */
+.challenge-picker {
+  position: relative;
+}
+.challenge-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 340px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  padding: 6px;
+}
+.challenge-menu-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  padding: 6px 8px;
+}
+.challenge-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--fg);
+}
+.challenge-item:hover {
+  background: var(--bg-panel);
+}
+.challenge-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.challenge-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.challenge-diff {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.diff-easy {
+  color: var(--accent-2);
+  background: rgba(166, 227, 161, 0.15);
+}
+.diff-medium {
+  color: var(--value-ptr);
+  background: rgba(249, 226, 175, 0.15);
+}
+.diff-hard {
+  color: var(--danger);
+  background: rgba(243, 139, 168, 0.15);
+}
+.challenge-prompt {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 /* Controls */
 .controls {
   display: flex;
