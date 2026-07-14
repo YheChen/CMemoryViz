@@ -881,6 +881,28 @@ class Interpreter {
           this.recordFree(name, p.value, expr.line);
           return { type: { kind: "void" }, value: 0 };
         }
+        if (name === "realloc") {
+          const p = this.evalExpr(expr.args[0]);
+          const bytes = this.evalExpr(expr.args[1]).value;
+          const elem = hint && hint.kind === "pointer" ? hint.to! : INT;
+          const count = Math.max(1, Math.floor(bytes / this.mem.sizeOf(elem)));
+          // realloc(NULL, n) behaves like malloc(n).
+          if (p.value === 0) {
+            const block = this.mem.allocHeap(elem, count);
+            this.recordAlloc(name, block.address, block.size, expr.line);
+            return { type: { kind: "pointer", to: elem }, value: block.address };
+          }
+          let block;
+          try {
+            block = this.mem.reallocHeap(p.value, elem, count);
+          } catch (e: any) {
+            throw new RuntimeError(e.message, expr.line);
+          }
+          // Accounting: the old block is freed, a new one is allocated.
+          this.recordFree(name, p.value, expr.line);
+          this.recordAlloc(name, block.address, block.size, expr.line);
+          return { type: { kind: "pointer", to: elem }, value: block.address };
+        }
         if (name === "printf") {
           this.doPrintf(expr.args);
           return { type: INT, value: 0 };
