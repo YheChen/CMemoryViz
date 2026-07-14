@@ -63,7 +63,8 @@ npm run build
 - **Global variables** (own diagram section, zero-initialized)
 - Strings: `char s[] = "hi"` (bytes on the stack) and `char *s = "hi"`
   (read-only section), both rendered byte-by-byte with `'\0'`
-- `malloc` / `calloc` / `free`, `sizeof`, casts, `strlen`
+- `malloc` / `calloc` / `realloc` / `free`, `sizeof`, casts, `strlen`;
+  `int **` 2D dynamic arrays
 - Arithmetic (float-aware), comparison, logical, bitwise ops; pointer arithmetic
 - `if` / `else`, `while`, `for`, `break`, `continue`
 - `printf` (`%d %i %u %c %s %f %g %p %x %%`) -> captured stdout
@@ -91,11 +92,15 @@ npm run build
   just ran get a blue tint, so each step's effect is visible at a glance.
 - **🔗 Share**: one click copies a link that reproduces the exact code, step,
   breakpoints and exam mode — send a classmate "the state before line 8".
+- **Heap report**: total allocations/frees, bytes live at the current step,
+  and a list of leaks (blocks never freed) with the line each was allocated on.
+- **📚 Challenges**: curated exam-style problems that open in exam mode paused
+  at the target line — fill in the diagram and Check it.
 - Built-in **sample programs** (menu, top right) covering every feature.
 
 ## Roadmap
 
 - Watch expressions / hover a variable to highlight its cell
-- More of libc: `strcpy`, `strcat`, `memcpy`, `realloc`
-- Problem-set challenge bank (past-exam programs opening in exam mode)
+- More of libc: `strcpy`, `strcat`, `memcpy`
 - Structs returned by value, unions, `typedef`
+- Beyond the memory model: `fork()` / process view, file-descriptor tables
