@@ -490,3 +490,63 @@ body {
   white-space: pre-wrap;
   color: var(--accent-2);
 }
+
+/* Heap lifecycle report */
+.heap-report {
+  margin: 12px 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  font-size: 13px;
+}
+.heap-report-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.heap-report-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.heap-badge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.heap-ok {
+  color: var(--accent-2);
+  background: rgba(166, 227, 161, 0.14);
+}
+.heap-leak {
+  color: var(--danger);
+  background: rgba(243, 139, 168, 0.14);
+}
+.heap-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+}
+.heap-stats strong {
+  color: var(--fg);
+}
+.heap-leaks {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--danger);
+}
+.heap-leaks li {
+  margin: 2px 0;
+}
+.heap-leaks code {
+  font-family: "JetBrains Mono", Menlo, monospace;
+  color: var(--value-ptr);
+}
+.heap-leaks strong {
+  color: var(--fg);
+}
