@@ -3,6 +3,8 @@ import { CodeEditor } from "./components/CodeEditor";
 import { MemoryDiagram } from "./components/MemoryDiagram";
 import { ExamDiagram } from "./components/ExamDiagram";
 import { HeapReportPanel } from "./components/HeapReportPanel";
+import { ChallengePicker } from "./components/ChallengePicker";
+import type { Challenge } from "./challenges";
 import { Controls } from "./components/Controls";
 import { run, RunResult } from "./interpreter/interpreter";
 import { diffSnapshots } from "./components/diagramModel";
@@ -258,6 +260,20 @@ export default function App() {
     setBreakpoints(new Set());
   };
 
+  // Load a practice problem: run it, pause at the target line, enter exam mode.
+  const loadChallenge = (c: Challenge) => {
+    setSource(c.source);
+    setBreakpoints(new Set());
+    const r = run(c.source);
+    setResult(r);
+    setExamMode(true);
+    let idx = r.steps.findIndex(
+      (s) => s.line === c.targetLine && (!c.targetNote || s.note === c.targetNote)
+    );
+    if (idx < 0) idx = r.steps.length - 1;
+    setStepIndex(Math.max(0, idx));
+  };
+
   return (
     <div className="app">
       <header className="topbar">
@@ -273,6 +289,7 @@ export default function App() {
           >
             {copied ? "✓ Copied!" : "🔗 Share"}
           </button>
+          <ChallengePicker onPick={loadChallenge} />
           <select
             className="sample-select"
             defaultValue={DEFAULT_SAMPLE}
