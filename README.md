@@ -1,106 +1,157 @@
+<div align="center">
+
 # CMemoryViz
 
-A browser-based visualizer for **C memory models** in the **CSC 209 style** —
-type C on the left, watch the `Section / Address / Value / Label` memory diagram
-build up on the right, and step through execution one statement at a time.
+**A browser-based visualizer for C memory models — write C, watch the stack, heap, and pointers come to life.**
 
-Inspired by [MemoryViz](https://github.com/david-yz-liu/memory-viz) (which does
-this for Python), but rebuilt around C's address-based memory model: explicit
-hex addresses, Read-only / Heap / Stack sections, separated & labeled stack
-frames, literal pointer addresses with arrows, and `???` for uninitialized
-memory.
+Built for students learning C systems programming (in the style of the University of Toronto's CSC 209 memory diagrams): type code on the left, and a precise `Section / Address / Value / Label` memory diagram builds up on the right as you step through execution — one statement at a time.
 
-## How it works
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen?style=flat-square)](https://c-memory-viz.vercel.app)
+[![Tests](https://img.shields.io/badge/tests-59%20passing-brightgreen?style=flat-square)](#testing)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-Everything runs client-side. There is **no real C compiler** — instead a small
-tree-walking interpreter executes a subset of C and models memory the way the
-course does:
+### [**▶ Try it live →**](https://c-memory-viz.vercel.app)
 
-```
-src/interpreter/
-  lexer.ts        C tokenizer
-  parser.ts       recursive-descent parser -> AST
-  ast.ts          AST + C type definitions
-  memory.ts       sections, deterministic "clean" address allocator, typed cells
-  interpreter.ts  evaluator; records a memory snapshot before every statement
-src/components/
-  CodeEditor.tsx    Monaco editor (VSCode look), breakpoints, error squiggles
-  MemoryDiagram.tsx SVG table renderer + pointer arrows
-  Controls.tsx      run / step / scrub the execution trace
-```
+<img src="docs/diagram.png" alt="CMemoryViz memory diagram: the sumpairs example paused before its return, showing heap, two labeled stack frames, uninitialized memory, and pointer arrows" width="720">
 
-The interpreter runs the whole program and records a **snapshot before each
-statement**. The UI scrubs through that trace, so stopping "exactly before the
-`return` on line 8" (as exam questions phrase it) is just an index into the
-trace.
+</div>
 
-### Address conventions (to match the handout)
+---
 
-- `int` / pointer / `float` = 4 bytes, 4-byte aligned; `double` = 8 bytes,
-  8-byte aligned; `char` = 1 byte.
-- Fixed section bases: Read-only `0x104`, Globals `0x1a0`, Heap `0x240`,
-  Stack `0x444`. Functions get pseudo-addresses from `0x50` (the "code"
-  region) so function pointers have real values.
-- Each function call pushes a labeled frame at a higher address.
-- Uninitialized cells render as `???`; globals are zero-initialized like real C.
+## Overview
 
-## Running
+Exam questions in a systems course often read: *"Fill in the memory diagram showing the state **exactly before the return on line 8**."* Reasoning about that state by hand — every address, every stack frame, which pointer points where — is the hard part of learning C.
 
-```bash
-npm install
-npm run dev      # http://localhost:5173
-npm test         # interpreter tests (reproduces the sumpairs midterm exactly)
-npm run build
-```
+CMemoryViz makes it interactive. It runs entirely in your browser (there is **no server and no real compiler**): a hand-written C interpreter executes a teaching subset of the language and models memory the way the course does — explicit hex addresses, separate Read-only / Globals / Heap / Stack regions, labeled stack frames, literal pointer values drawn as arrows, and `???` for uninitialized memory.
 
-## Supported C subset
+Because the interpreter records a snapshot **before every statement**, you can scrub the whole execution timeline and land on any point — making "the state before line 8" a single click.
 
-- Functions, calls, recursion, `return`; **function pointers**
-  (`int (*fp)(int, int)`, `fp = add`, `(*fp)(...)`, fp parameters)
-- `int`, `char`, `void`, `float`, `double`, pointers, arrays (incl.
-  `int arr[] = {...}`, **multidimensional** `int m[2][2] = {{...},{...}}`),
-  `struct` (incl. `{...}` initializers)
-- **Global variables** (own diagram section, zero-initialized)
-- Strings: `char s[] = "hi"` (bytes on the stack) and `char *s = "hi"`
-  (read-only section), both rendered byte-by-byte with `'\0'`
-- `malloc` / `calloc` / `realloc` / `free`, `sizeof`, casts, `strlen`;
-  `int **` 2D dynamic arrays
-- Arithmetic (float-aware), comparison, logical, bitwise ops; pointer arithmetic
-- `if` / `else`, `while`, `for`, `break`, `continue`
-- `printf` (`%d %i %u %c %s %f %g %p %x %%`) -> captured stdout
-- `&`, `*`, `[]`, `.`, `->`, pre/post `++`/`--`
+> Inspired by [MemoryViz](https://github.com/david-yz-liu/memory-viz) (which visualizes Python), rebuilt from scratch around C's fundamentally different, address-based memory model.
 
 ## Features
 
-- **Step & scrub** through execution; per-cell sub-labels (`[i]`, `.field`,
-  `[1][0]`) next to each row.
-- **Breakpoints**: click the gutter; Run stops at the first hit,
-  `▶▶ Continue` jumps to the next. Perfect for "state exactly before line N".
-- **Error squiggles** for parse and runtime errors, plus teaching-grade
-  diagnostics: dangling-pointer reads name the freed block, double free,
-  invalid free, uninitialized reads include the address.
-- **Dangling pointers** render with a `⚠` in the diagram; function-pointer
-  cells show the function's name.
-- **Arrow routing** assigns each pointer arrow its own channel (fewest
-  crossings).
-- **Export** the diagram as SVG or PNG for problem sets.
-- **Exam mode**: values and labels become blank inputs and pointer arrows
-  must be drawn by hand (◉ handles) — fill in the diagram at any step, then
-  Check (lenient grading: hex case, `NULL`/`0`, `???`, quoted or bare chars;
-  extra arrows flagged) or Reveal.
-- **Step-diff highlighting**: cells created or changed by the statement that
-  just ran get a blue tint, so each step's effect is visible at a glance.
-- **🔗 Share**: one click copies a link that reproduces the exact code, step,
-  breakpoints and exam mode — send a classmate "the state before line 8".
-- **Heap report**: total allocations/frees, bytes live at the current step,
-  and a list of leaks (blocks never freed) with the line each was allocated on.
-- **📚 Challenges**: curated exam-style problems that open in exam mode paused
-  at the target line — fill in the diagram and Check it.
-- Built-in **sample programs** (menu, top right) covering every feature.
+| | |
+|---|---|
+| 🧠 **Real interpretation** | Type arbitrary C and watch memory update — not canned animations. Functions, recursion, pointers, arrays, structs, strings, and dynamic memory all work. |
+| ⏯️ **Step & scrub** | Play through execution statement by statement, or drag the timeline to any point. The current line is highlighted in the editor. |
+| 🎯 **Breakpoints** | Click the gutter to set a breakpoint; **Run** stops at the first hit and **Continue** jumps to the next — ideal for "state exactly before line N". |
+| 🔦 **Step-diff highlighting** | Cells created or changed by the statement that just ran are tinted, so each step's effect on memory is obvious at a glance. |
+| 🧩 **Pointer arrows** | Every pointer is drawn to the cell it references, with automatic channel routing to minimize crossings. Dangling pointers are flagged. |
+| 🧪 **Heap report** | Live allocation tracking: total `malloc`/`free`, bytes live at the current step, and a list of **leaks** (blocks never freed) with the line each was allocated on. |
+| 📝 **Exam mode** | Blank out the Value/Label columns and hide the arrows, then fill in the diagram yourself and **Check** it — lenient grading (hex case, `NULL`, `???`, chars) with per-cell and per-arrow feedback, or **Reveal** the answer. |
+| 📚 **Challenge bank** | Curated, exam-style problems that open directly in exam mode paused at the target line. |
+| 🔗 **Shareable links** | One click copies a URL that reproduces the exact code, step, and breakpoints — send a classmate "the state before line 8." |
+| ⬇️ **Export** | Save any diagram as SVG or PNG for problem sets and study notes. |
+| 🩺 **Teaching-grade diagnostics** | Use-after-free names the freed block; double free, invalid free, and uninitialized reads report the offending address and line. |
+
+## How it works
+
+The pipeline is a classic tree-walking interpreter, with one twist: it snapshots memory before every statement so the UI can time-travel through the run.
+
+```mermaid
+flowchart LR
+    A[C source] --> B[Lexer]
+    B --> C[Parser]
+    C --> D[AST]
+    D --> E[Interpreter]
+    E -- snapshot before<br/>every statement --> F[(Trace)]
+    F --> G[Memory diagram]
+    G -.->|scrub / step| F
+```
+
+The **memory model** uses a deterministic "clean" address allocator so diagrams are reproducible and readable, matching the conventions used in course handouts:
+
+- `int` / pointer / `float` are 4 bytes (4-byte aligned); `double` is 8 bytes (8-byte aligned); `char` is 1 byte.
+- Fixed section bases — Read-only `0x104`, Globals `0x1a0`, Heap `0x240`, Stack `0x444` — and functions get pseudo-addresses from `0x50` so function pointers carry real values.
+- Each function call pushes a labeled frame at a higher address; uninitialized cells render as `???`; globals are zero-initialized, as in real C.
+
+## Supported C subset
+
+<details>
+<summary><strong>Click to expand the full language coverage</strong></summary>
+
+- **Functions** — calls, recursion, `return`, and **function pointers** (`int (*fp)(int, int)`, `fp = add`, `(*fp)(...)`, function-pointer parameters)
+- **Types** — `int`, `char`, `void`, `float`, `double`, pointers, arrays (including `int a[] = {...}` and **multidimensional** `int m[2][2] = {{...},{...}}`), and `struct` (including `{...}` initializers)
+- **Global variables** — their own diagram section, zero-initialized
+- **Strings** — `char s[] = "hi"` (bytes on the stack) and `char *s = "hi"` (read-only section), rendered byte-by-byte including `'\0'`
+- **Dynamic memory** — `malloc` / `calloc` / `realloc` / `free`, `sizeof`, casts, and `int **` 2D dynamic arrays
+- **Operators** — arithmetic (float-aware), comparison, logical, bitwise, and pointer arithmetic; `&`, `*`, `[]`, `.`, `->`, pre/post `++`/`--`
+- **Control flow** — `if` / `else`, `while`, `for`, `break`, `continue`
+- **I/O** — `printf` with `%d %i %u %c %s %f %g %p %x %%`, captured to an on-screen stdout; `strlen`
+
+</details>
+
+## Getting started
+
+**Prerequisites:** [Node.js](https://nodejs.org/) 18+ and npm.
+
+```bash
+# Clone and install
+git clone https://github.com/YheChen/CMemoryViz.git
+cd CMemoryViz
+npm install
+
+# Start the dev server (http://localhost:5173)
+npm run dev
+
+# Run the test suite
+npm test
+
+# Build for production (type-checks, then bundles to dist/)
+npm run build
+```
+
+## Project structure
+
+```
+src/
+├─ interpreter/          # The engine — pure TypeScript, no DOM
+│  ├─ lexer.ts           #   C tokenizer
+│  ├─ parser.ts          #   recursive-descent parser → AST
+│  ├─ ast.ts             #   AST node & C type definitions
+│  ├─ memory.ts          #   sections, address allocator, typed cell store
+│  └─ interpreter.ts     #   evaluator; snapshots memory before each statement
+├─ components/
+│  ├─ CodeEditor.tsx     #   Monaco editor, breakpoints, error squiggles
+│  ├─ MemoryDiagram.tsx  #   SVG diagram renderer + pointer arrows + export
+│  ├─ ExamDiagram.tsx    #   fill-in-the-blank grading mode
+│  ├─ HeapReportPanel.tsx#   leak / allocation report
+│  ├─ ChallengePicker.tsx#   practice-problem menu
+│  └─ Controls.tsx       #   run / step / scrub the trace
+├─ challenges.ts         # curated exam-style problems
+├─ share.ts              # URL-hash state encoding for shareable links
+└─ App.tsx               # composition root
+```
+
+The interpreter has **zero UI dependencies** — it's plain TypeScript that turns a source string into a trace of memory snapshots, which keeps it fully unit-testable and keeps rendering concerns out of the language semantics.
+
+## Testing
+
+The interpreter and supporting logic are covered by [Vitest](https://vitest.dev/) — **59 tests** across lexing/parsing/evaluation, the heap lifecycle report, `realloc`/`int **` semantics, share-link round-tripping, diagram diffing, and every bundled challenge. The suite includes a test that reproduces the canonical `sumpairs` midterm diagram address-for-address.
+
+```bash
+npm test
+```
+
+## Deployment
+
+The app is a fully static Vite build with no backend, deployed on [Vercel](https://vercel.com/) with automatic production deploys on every push to `master`. Because `npm run build` runs `tsc` first, type errors block bad deploys.
 
 ## Roadmap
 
-- Watch expressions / hover a variable to highlight its cell
-- More of libc: `strcpy`, `strcat`, `memcpy`
-- Structs returned by value, unions, `typedef`
-- Beyond the memory model: `fork()` / process view, file-descriptor tables
+- [ ] Hover a variable to highlight its cells (and vice-versa)
+- [ ] More of the C standard library: `strcpy`, `strcat`, `memcpy`
+- [ ] Structs passed/returned by value, `union`, `typedef`
+- [ ] Beyond the memory model: `fork()` / process view, file-descriptor tables
+
+## Acknowledgements
+
+- [MemoryViz](https://github.com/david-yz-liu/memory-viz) for pioneering this style of teaching visualization for Python.
+- The University of Toronto CSC 209 course, whose memory-diagram conventions this tool mirrors.
+
+## License
+
+Released under the [MIT License](LICENSE).
