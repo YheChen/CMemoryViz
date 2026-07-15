@@ -27,18 +27,26 @@ export function Controls({
   const atEnd = stepIndex >= stepCount - 1;
 
   return (
-    <div className="controls">
+    <div className="controls" role="toolbar" aria-label="Execution controls">
       <button className="btn primary" onClick={onRun} title="Interpret the code">
         ▶ Run
       </button>
       <div className="stepper">
-        <button className="btn" disabled={!hasSteps || atStart} onClick={() => onSeek(0)}>
+        <button
+          className="btn"
+          disabled={!hasSteps || atStart}
+          onClick={() => onSeek(0)}
+          aria-label="First step"
+          title="First step (Home)"
+        >
           ⏮
         </button>
         <button
           className="btn"
           disabled={!hasSteps || atStart}
           onClick={() => onSeek(stepIndex - 1)}
+          aria-label="Previous step"
+          title="Previous step (←)"
         >
           ◀ Step
         </button>
@@ -46,6 +54,8 @@ export function Controls({
           className="btn"
           disabled={!hasSteps || atEnd}
           onClick={() => onSeek(stepIndex + 1)}
+          aria-label="Next step"
+          title="Next step (→)"
         >
           Step ▶
         </button>
@@ -63,6 +73,8 @@ export function Controls({
           className="btn"
           disabled={!hasSteps || atEnd}
           onClick={() => onSeek(stepCount - 1)}
+          aria-label="Last step"
+          title="Last step (End)"
         >
           ⏭
         </button>
@@ -75,6 +87,7 @@ export function Controls({
         value={stepIndex < 0 ? 0 : stepIndex}
         disabled={!hasSteps}
         onChange={(e) => onSeek(Number(e.target.value))}
+        aria-label="Execution step"
       />
       <div className="step-info">
         {hasSteps ? (
