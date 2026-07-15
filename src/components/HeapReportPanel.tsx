@@ -37,14 +37,16 @@ export function HeapReportPanel({
       <div className="heap-report-head">
         <span className="heap-report-title">Heap report</span>
         <span className={balanced ? "heap-badge heap-ok" : "heap-badge heap-leak"}>
-          {balanced ? "✓ no leaks" : `⚠ ${report.leaks.length} leak${report.leaks.length > 1 ? "s" : ""}`}
+          {balanced
+            ? "✓ no leaks"
+            : `⚠ ${report.leaks.length} leak${report.leaks.length > 1 ? "s" : ""}`}
         </span>
       </div>
 
       <div className="heap-stats">
         <span>
-          <strong>{report.totalAllocs}</strong> alloc{report.totalAllocs !== 1 ? "s" : ""} (
-          {report.totalBytes} B)
+          <strong>{report.totalAllocs}</strong> alloc{report.totalAllocs !== 1 ? "s" : ""}{" "}
+          ({report.totalBytes} B)
         </span>
         <span>
           <strong>{report.totalFreed}</strong> free{report.totalFreed !== 1 ? "s" : ""}
@@ -60,8 +62,8 @@ export function HeapReportPanel({
         <ul className="heap-leaks">
           {report.leaks.map((l) => (
             <li key={l.address}>
-              leaked <code>{l.size} B</code> at <code>{hex(l.address)}</code> — allocated on line{" "}
-              <strong>{l.line}</strong>, never freed
+              leaked <code>{l.size} B</code> at <code>{hex(l.address)}</code> — allocated
+              on line <strong>{l.line}</strong>, never freed
             </li>
           ))}
         </ul>

@@ -1,13 +1,7 @@
 // A small hand-written C lexer for the supported subset.
 
 export type TokenType =
-  | "keyword"
-  | "identifier"
-  | "number"
-  | "char"
-  | "string"
-  | "punct"
-  | "eof";
+  "keyword" | "identifier" | "number" | "char" | "string" | "punct" | "eof";
 
 export interface Token {
   type: TokenType;
@@ -84,7 +78,10 @@ const PUNCT = [
 ];
 
 export class LexError extends Error {
-  constructor(message: string, public line: number) {
+  constructor(
+    message: string,
+    public line: number
+  ) {
     super(`Line ${line}: ${message}`);
   }
 }
@@ -136,7 +133,7 @@ export function tokenize(src: string): Token[] {
 
     // Numbers: decimal ints, hex (0x..), and floats (1.5, 2e3, 1.5e-2)
     if (isDigit(c)) {
-      let start = i;
+      const start = i;
       if (c === "0" && (src[i + 1] === "x" || src[i + 1] === "X")) {
         i += 2;
         while (i < n && /[0-9a-fA-F]/.test(src[i])) i++;
@@ -148,7 +145,11 @@ export function tokenize(src: string): Token[] {
           i++;
           while (i < n && isDigit(src[i])) i++;
         }
-        if ((src[i] === "e" || src[i] === "E") && (isDigit(src[i + 1]) || ((src[i + 1] === "+" || src[i + 1] === "-") && isDigit(src[i + 2])))) {
+        if (
+          (src[i] === "e" || src[i] === "E") &&
+          (isDigit(src[i + 1]) ||
+            ((src[i + 1] === "+" || src[i + 1] === "-") && isDigit(src[i + 2])))
+        ) {
           i += 2;
           while (i < n && isDigit(src[i])) i++;
         }
@@ -161,7 +162,7 @@ export function tokenize(src: string): Token[] {
 
     // Identifiers / keywords
     if (isIdentStart(c)) {
-      let start = i;
+      const start = i;
       while (i < n && isIdentPart(src[i])) i++;
       const value = src.slice(start, i);
       tokens.push({
@@ -192,7 +193,6 @@ export function tokenize(src: string): Token[] {
     // String literal
     if (c === '"') {
       i++;
-      let start = i;
       let str = "";
       while (i < n && src[i] !== '"') {
         if (src[i] === "\\") {

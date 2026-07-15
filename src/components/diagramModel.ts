@@ -34,10 +34,7 @@ export function hex(n: number): string {
   return "0x" + n.toString(16);
 }
 
-export function formatValue(
-  cell: Cell,
-  functionAddrs?: Record<number, string>
-): string {
+export function formatValue(cell: Cell, functionAddrs?: Record<number, string>): string {
   if (cell.value === undefined) return "???";
   if (isPointer(cell.type)) {
     if (cell.value === 0) return "NULL";

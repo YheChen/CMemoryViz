@@ -16,7 +16,9 @@ describe("share links", () => {
 
   it("produces URL-safe output", () => {
     // Lots of bytes that would produce + and / in plain base64
-    const src = Array.from({ length: 200 }, (_, i) => String.fromCharCode(i % 128)).join("");
+    const src = Array.from({ length: 200 }, (_, i) => String.fromCharCode(i % 128)).join(
+      ""
+    );
     const encoded = encodeShareState({ v: 1, src });
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(decodeShareState(encoded)?.src).toBe(src);

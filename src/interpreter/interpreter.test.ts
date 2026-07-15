@@ -17,7 +17,12 @@ int main() {
 }`;
 
 function flatCells(snap: MemorySnapshot) {
-  const rows: { addr: number; value: number | undefined; kind: string; label?: string }[] = [];
+  const rows: {
+    addr: number;
+    value: number | undefined;
+    kind: string;
+    label?: string;
+  }[] = [];
   const push = (blocks: any[]) => {
     for (const b of blocks)
       for (const c of b.cells)

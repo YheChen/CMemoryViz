@@ -55,7 +55,7 @@ int main() {
     return 0;
 }
 `,
-  "strings": `int main() {
+  strings: `int main() {
     char stack_str[] = "hi";
     char *ro_str = "hello";
 
@@ -156,7 +156,7 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | undefined>(undefined);
 
-  const steps = result?.steps ?? [];
+  const steps = useMemo(() => result?.steps ?? [], [result]);
 
   // Restore a shared link: #<base64url state> -> load, run, land on the step.
   useEffect(() => {

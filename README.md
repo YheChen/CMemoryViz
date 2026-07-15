@@ -8,6 +8,8 @@ Built for students learning C systems programming (in the style of the Universit
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen?style=flat-square)](https://c-memory-viz.vercel.app)
 [![CI](https://img.shields.io/github/actions/workflow/status/YheChen/CMemoryViz/ci.yml?branch=master&style=flat-square&label=CI)](https://github.com/YheChen/CMemoryViz/actions/workflows/ci.yml)
+[![codecov](https://img.shields.io/codecov/c/github/YheChen/CMemoryViz?style=flat-square&logo=codecov)](https://codecov.io/gh/YheChen/CMemoryViz)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4?style=flat-square&logo=prettier&logoColor=white)](https://prettier.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
@@ -23,7 +25,7 @@ Built for students learning C systems programming (in the style of the Universit
 
 ## Overview
 
-Exam questions in a systems course often read: *"Fill in the memory diagram showing the state **exactly before the return on line 8**."* Reasoning about that state by hand — every address, every stack frame, which pointer points where — is the hard part of learning C.
+Exam questions in a systems course often read: _"Fill in the memory diagram showing the state **exactly before the return on line 8**."_ Reasoning about that state by hand — every address, every stack frame, which pointer points where — is the hard part of learning C.
 
 CMemoryViz makes it interactive. It runs entirely in your browser (there is **no server and no real compiler**): a hand-written C interpreter executes a teaching subset of the language and models memory the way the course does — explicit hex addresses, separate Read-only / Globals / Heap / Stack regions, labeled stack frames, literal pointer values drawn as arrows, and `???` for uninitialized memory.
 
@@ -33,19 +35,19 @@ Because the interpreter records a snapshot **before every statement**, you can s
 
 ## Features
 
-| | |
-|---|---|
-| 🧠 **Real interpretation** | Type arbitrary C and watch memory update — not canned animations. Functions, recursion, pointers, arrays, structs, strings, and dynamic memory all work. |
-| ⏯️ **Step & scrub** | Play through execution statement by statement, or drag the timeline to any point. The current line is highlighted in the editor. |
-| 🎯 **Breakpoints** | Click the gutter to set a breakpoint; **Run** stops at the first hit and **Continue** jumps to the next — ideal for "state exactly before line N". |
-| 🔦 **Step-diff highlighting** | Cells created or changed by the statement that just ran are tinted, so each step's effect on memory is obvious at a glance. |
-| 🧩 **Pointer arrows** | Every pointer is drawn to the cell it references, with automatic channel routing to minimize crossings. Dangling pointers are flagged. |
-| 🧪 **Heap report** | Live allocation tracking: total `malloc`/`free`, bytes live at the current step, and a list of **leaks** (blocks never freed) with the line each was allocated on. |
-| 📝 **Exam mode** | Blank out the Value/Label columns and hide the arrows, then fill in the diagram yourself and **Check** it — lenient grading (hex case, `NULL`, `???`, chars) with per-cell and per-arrow feedback, or **Reveal** the answer. |
-| 📚 **Challenge bank** | Curated, exam-style problems that open directly in exam mode paused at the target line. |
-| 🔗 **Shareable links** | One click copies a URL that reproduces the exact code, step, and breakpoints — send a classmate "the state before line 8." |
-| ⬇️ **Export** | Save any diagram as SVG or PNG for problem sets and study notes. |
-| 🩺 **Teaching-grade diagnostics** | Use-after-free names the freed block; double free, invalid free, and uninitialized reads report the offending address and line. |
+|                                   |                                                                                                                                                                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🧠 **Real interpretation**        | Type arbitrary C and watch memory update — not canned animations. Functions, recursion, pointers, arrays, structs, strings, and dynamic memory all work.                                                                     |
+| ⏯️ **Step & scrub**               | Play through execution statement by statement, or drag the timeline to any point. The current line is highlighted in the editor.                                                                                             |
+| 🎯 **Breakpoints**                | Click the gutter to set a breakpoint; **Run** stops at the first hit and **Continue** jumps to the next — ideal for "state exactly before line N".                                                                           |
+| 🔦 **Step-diff highlighting**     | Cells created or changed by the statement that just ran are tinted, so each step's effect on memory is obvious at a glance.                                                                                                  |
+| 🧩 **Pointer arrows**             | Every pointer is drawn to the cell it references, with automatic channel routing to minimize crossings. Dangling pointers are flagged.                                                                                       |
+| 🧪 **Heap report**                | Live allocation tracking: total `malloc`/`free`, bytes live at the current step, and a list of **leaks** (blocks never freed) with the line each was allocated on.                                                           |
+| 📝 **Exam mode**                  | Blank out the Value/Label columns and hide the arrows, then fill in the diagram yourself and **Check** it — lenient grading (hex case, `NULL`, `???`, chars) with per-cell and per-arrow feedback, or **Reveal** the answer. |
+| 📚 **Challenge bank**             | Curated, exam-style problems that open directly in exam mode paused at the target line.                                                                                                                                      |
+| 🔗 **Shareable links**            | One click copies a URL that reproduces the exact code, step, and breakpoints — send a classmate "the state before line 8."                                                                                                   |
+| ⬇️ **Export**                     | Save any diagram as SVG or PNG for problem sets and study notes.                                                                                                                                                             |
+| 🩺 **Teaching-grade diagnostics** | Use-after-free names the freed block; double free, invalid free, and uninitialized reads report the offending address and line.                                                                                              |
 
 ## How it works
 
@@ -100,6 +102,10 @@ npm run dev
 # Run the test suite
 npm test
 
+# Lint and format
+npm run lint
+npm run format        # or: npm run format:check
+
 # Build for production (type-checks, then bundles to dist/)
 npm run build
 ```
@@ -146,6 +152,12 @@ The app is a fully static Vite build with no backend, deployed on [Vercel](https
 - [ ] More of the C standard library: `strcpy`, `strcat`, `memcpy`
 - [ ] Structs passed/returned by value, `union`, `typedef`
 - [ ] Beyond the memory model: `fork()` / process view, file-descriptor tables
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and
+the check suite. In short: `npm run lint`, `npm run format:check`, `npx tsc
+--noEmit`, `npm test`, and `npm run build` should all pass (CI enforces them).
 
 ## Acknowledgements
 

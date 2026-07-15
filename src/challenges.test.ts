@@ -21,7 +21,10 @@ describe("challenge bank", () => {
         const idx = r.steps.findIndex(
           (s) => s.line === c.targetLine && (!c.targetNote || s.note === c.targetNote)
         );
-        expect(idx, `no step at line ${c.targetLine}${c.targetNote ? ` (note ${c.targetNote})` : ""}`).toBeGreaterThanOrEqual(0);
+        expect(
+          idx,
+          `no step at line ${c.targetLine}${c.targetNote ? ` (note ${c.targetNote})` : ""}`
+        ).toBeGreaterThanOrEqual(0);
       });
 
       it("target step has memory to fill in", () => {

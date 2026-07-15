@@ -62,15 +62,7 @@ export interface FunctionDecl extends Node {
 // ---- Statements ------------------------------------------------------------
 
 export type Statement =
-  | Block
-  | VarDecl
-  | If
-  | While
-  | For
-  | Return
-  | ExpressionStatement
-  | Break
-  | Continue;
+  Block | VarDecl | If | While | For | Return | ExpressionStatement | Break | Continue;
 
 export interface Block extends Node {
   kind: "Block";

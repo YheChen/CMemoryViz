@@ -32,9 +32,23 @@ export function Controls({
         ▶ Run
       </button>
       <div className="stepper">
-        <button className="btn" disabled={!hasSteps || atStart} onClick={() => onSeek(0)}>⏮</button>
-        <button className="btn" disabled={!hasSteps || atStart} onClick={() => onSeek(stepIndex - 1)}>◀ Step</button>
-        <button className="btn" disabled={!hasSteps || atEnd} onClick={() => onSeek(stepIndex + 1)}>Step ▶</button>
+        <button className="btn" disabled={!hasSteps || atStart} onClick={() => onSeek(0)}>
+          ⏮
+        </button>
+        <button
+          className="btn"
+          disabled={!hasSteps || atStart}
+          onClick={() => onSeek(stepIndex - 1)}
+        >
+          ◀ Step
+        </button>
+        <button
+          className="btn"
+          disabled={!hasSteps || atEnd}
+          onClick={() => onSeek(stepIndex + 1)}
+        >
+          Step ▶
+        </button>
         {hasBreakpoints && (
           <button
             className="btn"
@@ -45,7 +59,13 @@ export function Controls({
             ▶▶ Continue
           </button>
         )}
-        <button className="btn" disabled={!hasSteps || atEnd} onClick={() => onSeek(stepCount - 1)}>⏭</button>
+        <button
+          className="btn"
+          disabled={!hasSteps || atEnd}
+          onClick={() => onSeek(stepCount - 1)}
+        >
+          ⏭
+        </button>
       </div>
       <input
         className="scrubber"
