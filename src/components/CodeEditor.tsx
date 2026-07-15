@@ -8,6 +8,7 @@ import type * as Monaco from "monaco-editor";
 interface Props {
   value: string;
   onChange: (value: string) => void;
+  theme?: "dark" | "light";
   highlightLine: number | null;
   breakpoints: Set<number>;
   onToggleBreakpoint: (line: number) => void;
@@ -20,6 +21,7 @@ interface Props {
 export function CodeEditor({
   value,
   onChange,
+  theme = "dark",
   highlightLine,
   breakpoints,
   onToggleBreakpoint,
@@ -159,7 +161,7 @@ export function CodeEditor({
       <Editor
         height="100%"
         defaultLanguage="c"
-        theme="vs-dark"
+        theme={theme === "light" ? "light" : "vs-dark"}
         value={value}
         onChange={(v) => onChange(v ?? "")}
         onMount={onMount}

@@ -227,6 +227,8 @@ export function MemoryDiagram({
           width={width}
           height={height}
           xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label="Memory diagram: sections, addresses, values, and pointer arrows"
         >
           <defs>
             <marker

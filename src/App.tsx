@@ -158,8 +158,19 @@ export default function App() {
   const copyTimer = useRef<number | undefined>(undefined);
   // Cross-highlight target shared by editor, diagram, and call stack.
   const [highlight, setHighlight] = useState<Highlight | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const stored = localStorage.getItem("cmv-theme");
+    if (stored === "light" || stored === "dark") return stored;
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  });
 
   const steps = useMemo(() => result?.steps ?? [], [result]);
+
+  // Apply + persist the theme.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("cmv-theme", theme);
+  }, [theme]);
 
   const scrollToFrame = (frameId: number) => {
     document
@@ -249,6 +260,34 @@ export default function App() {
     setStepIndex(Math.max(0, Math.min(steps.length - 1, i)));
   };
 
+  // Keyboard stepping (←/→ to step, Home/End to jump), except while typing in
+  // the editor or a form control.
+  useEffect(() => {
+    const n = steps.length;
+    if (n === 0) return;
+    const clamp = (i: number) => Math.max(0, Math.min(n - 1, i));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.closest(".editor-wrap") ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft") setStepIndex((i) => clamp(i - 1));
+      else if (e.key === "ArrowRight") setStepIndex((i) => clamp(i + 1));
+      else if (e.key === "Home") setStepIndex(0);
+      else if (e.key === "End") setStepIndex(n - 1);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [steps.length]);
+
   const error = result?.error ?? null;
   const highlightLine = current?.line ?? error?.line ?? null;
 
@@ -298,6 +337,14 @@ export default function App() {
           >
             {copied ? "✓ Copied!" : "🔗 Share"}
           </button>
+          <button
+            className="btn"
+            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
           <ChallengePicker onPick={loadChallenge} />
           <select
             className="sample-select"
@@ -338,6 +385,7 @@ export default function App() {
           <CodeEditor
             value={source}
             onChange={onSourceChange}
+            theme={theme}
             highlightLine={highlightLine}
             breakpoints={breakpoints}
             onToggleBreakpoint={toggleBreakpoint}
