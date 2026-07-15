@@ -48,6 +48,9 @@ export interface RunResult {
 interface RValue {
   type: A.CType;
   value: number;
+  // For struct values passed/returned/assigned by value: the leaf cell
+  // values in canonical order (see Interpreter.leafOffsets).
+  data?: (number | undefined)[];
 }
 
 interface LValue {
@@ -131,6 +134,10 @@ class Interpreter {
 
   constructor(private program: A.Program) {}
 
+  private get enumConstants(): Record<string, number> {
+    return this.program.enumConstants ?? {};
+  }
+
   private recordAlloc(fn: string, address: number, size: number, line: number) {
     this.liveAllocs.set(address, { size, line });
     this.heapEvents.push({
@@ -178,7 +185,7 @@ class Interpreter {
     const functionAddrs: Record<number, string> = {};
     try {
       for (const s of this.program.structs) {
-        this.mem.registerStruct(s.name, s.fields);
+        this.mem.registerStruct(s.name, s.fields, s.isUnion);
       }
       for (const f of this.program.functions) {
         this.functions.set(f.name, f);
@@ -298,16 +305,17 @@ class Interpreter {
       // Array parameters decay to pointers.
       const ptype: A.CType =
         p.type.kind === "array" ? { kind: "pointer", to: p.type.of! } : p.type;
-      if (ptype.kind === "struct") {
-        throw new RuntimeError(
-          `passing struct '${p.name}' by value is not supported — pass a pointer instead`,
-          fn.line
-        );
-      }
       const block = this.mem.allocLocal(p.name, ptype);
       this.declareVar(p.name, { address: block.address, type: ptype });
-      if (args[i] !== undefined) {
-        this.mem.write(block.address, this.coerce(args[i], ptype).value);
+      const arg = args[i];
+      if (arg !== undefined) {
+        if (this.isAggregate(ptype)) {
+          // Struct passed by value: copy the caller's aggregate into the param.
+          const data = arg.data ?? this.readAggregate(arg.value, ptype);
+          this.writeAggregate(block.address, ptype, data);
+        } else {
+          this.mem.write(block.address, this.coerce(arg, ptype).value);
+        }
       }
     }
     let result: RValue | undefined;
@@ -437,6 +445,11 @@ class Interpreter {
       } else if (d.init?.kind === "StringLiteral" && this.isCharArray(type)) {
         // char s[] = "hi"; -> bytes copied into the array, incl. '\0'
         this.writeStringInto(block.address, d.init.value);
+      } else if (d.init && this.isAggregate(type)) {
+        // struct q = p;  -> copy by value
+        const v = this.evalExpr(d.init, type);
+        const data = v.data ?? this.readAggregate(v.value, type);
+        this.writeAggregate(block.address, type, data);
       } else if (d.init) {
         const v = this.evalExpr(d.init, type);
         this.mem.write(block.address, this.coerce(v, type).value);
@@ -509,6 +522,10 @@ class Interpreter {
           return { type: { kind: "pointer", to: { kind: "void" } }, value: 0 };
         const v = this.tryLookupVar(expr.name);
         if (!v) {
+          // An enum constant evaluates to its integer value.
+          if (Object.prototype.hasOwnProperty.call(this.enumConstants, expr.name)) {
+            return { type: INT, value: this.enumConstants[expr.name] };
+          }
           // A bare function name evaluates to a function pointer.
           const addr = this.fnAddr.get(expr.name);
           if (addr !== undefined) {
@@ -534,11 +551,13 @@ class Interpreter {
           // Array decays to a pointer to its first element.
           return { type: { kind: "pointer", to: v.type.of! }, value: v.address };
         }
-        if (v.type.kind === "struct") {
-          throw new RuntimeError(
-            `struct assignment/copy of '${expr.name}' is not supported — access fields individually`,
-            expr.line
-          );
+        if (this.isAggregate(v.type)) {
+          // Struct value: carry a copy of its cells (by-value semantics).
+          return {
+            type: v.type,
+            value: v.address,
+            data: this.readAggregate(v.address, v.type),
+          };
         }
         const cell = this.readCellAt(v.address, expr.line);
         if (cell.value === undefined) {
@@ -601,11 +620,12 @@ class Interpreter {
     if (lv.type.kind === "array") {
       return { type: { kind: "pointer", to: lv.type.of! }, value: lv.address };
     }
-    if (lv.type.kind === "struct") {
-      throw new RuntimeError(
-        "struct copy is not supported — access fields individually",
-        line
-      );
+    if (this.isAggregate(lv.type)) {
+      return {
+        type: lv.type,
+        value: lv.address,
+        data: this.readAggregate(lv.address, lv.type),
+      };
     }
     const cell = this.readCellAt(lv.address, line);
     if (cell.value === undefined) {
@@ -829,11 +849,12 @@ class Interpreter {
 
   private evalAssignment(expr: A.Assignment): RValue {
     const lv = this.evalLValue(expr.target);
-    if (lv.type.kind === "struct") {
-      throw new RuntimeError(
-        "struct assignment is not supported — assign fields individually",
-        expr.line
-      );
+    // Whole-struct assignment: copy the aggregate by value.
+    if (this.isAggregate(lv.type) && expr.op === "=") {
+      const rhs = this.evalExpr(expr.value, lv.type);
+      const data = rhs.data ?? this.readAggregate(rhs.value, lv.type);
+      this.writeAggregate(lv.address, lv.type, data);
+      return { type: lv.type, value: lv.address, data };
     }
     let value: number;
     if (expr.op === "=") {
@@ -970,6 +991,8 @@ class Interpreter {
           const p = this.evalExpr(expr.args[0]);
           return { type: INT, value: this.readCString(p.value).length };
         }
+        const str = this.tryStringBuiltin(name, expr);
+        if (str) return str;
       }
     }
 
@@ -980,6 +1003,125 @@ class Interpreter {
     });
     const ret = this.callFunction(fn, args);
     return ret ?? { type: fn.returnType, value: 0 };
+  }
+
+  // <string.h> byte functions operating on char buffers by address.
+  private tryStringBuiltin(name: string, expr: A.Call): RValue | null {
+    const CHARP: A.CType = { kind: "pointer", to: CHAR };
+    const argAddr = (i: number) => this.evalExpr(expr.args[i]).value;
+    const argInt = (i: number) => this.evalExpr(expr.args[i]).value;
+    const wrap = (fn: () => number): RValue => {
+      try {
+        return {
+          type: name.startsWith("strc") && name.endsWith("cmp") ? INT : CHARP,
+          value: fn(),
+        };
+      } catch (e: any) {
+        throw new RuntimeError(e.message, expr.line);
+      }
+    };
+    switch (name) {
+      case "strcpy":
+        return wrap(() => {
+          const d = argAddr(0),
+            s = argAddr(1);
+          let i = 0;
+          for (;;) {
+            const ch = this.mem.readCell(s + i).value ?? 0;
+            this.mem.write(d + i, ch);
+            if (ch === 0) break;
+            i++;
+          }
+          return d;
+        });
+      case "strncpy":
+        return wrap(() => {
+          const d = argAddr(0),
+            s = argAddr(1),
+            n = argInt(2);
+          let ended = false;
+          for (let i = 0; i < n; i++) {
+            const ch = ended ? 0 : (this.mem.readCell(s + i).value ?? 0);
+            this.mem.write(d + i, ch);
+            if (ch === 0) ended = true;
+          }
+          return d;
+        });
+      case "strcat":
+        return wrap(() => {
+          const d = argAddr(0),
+            s = argAddr(1);
+          let end = 0;
+          while ((this.mem.readCell(d + end).value ?? 0) !== 0) end++;
+          let i = 0;
+          for (;;) {
+            const ch = this.mem.readCell(s + i).value ?? 0;
+            this.mem.write(d + end + i, ch);
+            if (ch === 0) break;
+            i++;
+          }
+          return d;
+        });
+      case "memcpy":
+        return wrap(() => {
+          const d = argAddr(0),
+            s = argAddr(1),
+            n = argInt(2);
+          let copied = 0;
+          while (copied < n && this.mem.hasCell(s + copied)) {
+            const c = this.mem.readCell(s + copied);
+            this.mem.write(d + copied, c.value ?? 0);
+            copied += c.size;
+          }
+          return d;
+        });
+      case "strcmp":
+      case "strncmp": {
+        const a = this.readCString(argAddr(0));
+        const b = this.readCString(argAddr(1));
+        const x = name === "strncmp" ? a.slice(0, argInt(2)) : a;
+        const y = name === "strncmp" ? b.slice(0, argInt(2)) : b;
+        return { type: INT, value: x < y ? -1 : x > y ? 1 : 0 };
+      }
+      default:
+        return null;
+    }
+  }
+
+  // ---- Struct-by-value helpers ----
+
+  // Canonical leaf-cell offsets (relative to the aggregate base), matching the
+  // order MemoryModel lays cells out. Used to copy structs by value.
+  private leafOffsets(type: A.CType, base = 0): number[] {
+    if (type.kind === "array") {
+      const size = this.mem.sizeOf(type.of!);
+      const out: number[] = [];
+      for (let k = 0; k < (type.length ?? 0); k++) {
+        out.push(...this.leafOffsets(type.of!, base + k * size));
+      }
+      return out;
+    }
+    if (type.kind === "struct") {
+      const s = this.mem.getStruct(type.name!);
+      const fields = s.isUnion ? s.fields.slice(0, 1) : s.fields;
+      const out: number[] = [];
+      for (const f of fields) out.push(...this.leafOffsets(f.type, base + f.offset));
+      return out;
+    }
+    return [base];
+  }
+
+  private readAggregate(address: number, type: A.CType): (number | undefined)[] {
+    return this.leafOffsets(type).map((off) => this.mem.readCell(address + off).value);
+  }
+
+  private writeAggregate(address: number, type: A.CType, data: (number | undefined)[]) {
+    const offs = this.leafOffsets(type);
+    offs.forEach((off, i) => this.mem.write(address + off, data[i] ?? 0));
+  }
+
+  private isAggregate(type: A.CType): boolean {
+    return type.kind === "struct";
   }
 
   private doPrintf(args: A.Expression[]) {

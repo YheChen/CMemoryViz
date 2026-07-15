@@ -19,6 +19,8 @@ const TYPE_KEYWORDS = new Set([
   "float",
   "double",
   "struct",
+  "union",
+  "enum",
   "unsigned",
   "const",
 ]);
@@ -31,6 +33,10 @@ export function parse(src: string): A.Program {
 class Parser {
   private pos = 0;
   private structNames = new Set<string>();
+  private typedefs = new Map<string, A.CType>();
+  private enumConstants: Record<string, number> = {};
+  private structs: A.StructDecl[] = [];
+  private anonCount = 0;
 
   constructor(private tokens: Token[]) {}
 
@@ -68,12 +74,25 @@ class Parser {
 
   parseProgram(): A.Program {
     const functions: A.FunctionDecl[] = [];
-    const structs: A.StructDecl[] = [];
     const globals: A.VarDecl[] = [];
     const line = this.line;
     while (this.peek().type !== "eof") {
-      if (this.is("struct") && this.peek(2).value === "{") {
-        structs.push(this.parseStructDecl());
+      if (this.is("typedef")) {
+        this.parseTypedef();
+        continue;
+      }
+      // A struct/union/enum *definition* at top level (has a body).
+      if (
+        (this.is("struct") || this.is("union")) &&
+        (this.peek(2).value === "{" || this.peek(1).value === "{")
+      ) {
+        this.parseAggregateDecl();
+        this.expect(";");
+        continue;
+      }
+      if (this.is("enum") && (this.peek(2).value === "{" || this.peek(1).value === "{")) {
+        this.parseEnumBody();
+        this.expect(";");
         continue;
       }
       // Top-level: type, then declarator; '(' after the name means function.
@@ -86,7 +105,74 @@ class Parser {
         globals.push(this.parseGlobalRest(base, type, name, declLine));
       }
     }
-    return { kind: "Program", functions, structs, globals, line };
+    return {
+      kind: "Program",
+      functions,
+      structs: this.structs,
+      globals,
+      enumConstants: this.enumConstants,
+      line,
+    };
+  }
+
+  // typedef <type> Name;  (also typedef struct/union/enum {…} Name;)
+  private parseTypedef(): void {
+    this.expect("typedef");
+    const base = this.parseBaseType(); // may define an aggregate/enum inline
+    const { type, name } = this.parseDeclaratorType(base);
+    this.typedefs.set(name, type);
+    this.expect(";");
+  }
+
+  // Parse a struct/union definition or bare reference, returning its CType.
+  // (Unions are stored in the same registry as structs, tagged isUnion.)
+  private parseAggregateDecl(): A.CType {
+    const isUnion = this.is("union");
+    this.next(); // struct | union
+    let name: string;
+    if (this.peek().type === "identifier") {
+      name = this.next().value;
+    } else {
+      name = `__anon${this.anonCount++}`;
+    }
+    this.structNames.add(name);
+    if (!this.is("{")) {
+      // Bare reference: `struct node *p;`
+      return { kind: "struct", name };
+    }
+    this.expect("{");
+    const fields: { type: A.CType; name: string }[] = [];
+    while (!this.is("}")) {
+      const base = this.parseBaseType();
+      do {
+        const { type, name: fname } = this.parseDeclaratorType(base);
+        fields.push({ type, name: fname });
+      } while (this.eat(","));
+      this.expect(";");
+    }
+    this.expect("}");
+    this.structs.push({ kind: "StructDecl", name, fields, isUnion, line: this.line });
+    return { kind: "struct", name };
+  }
+
+  // enum [Name] { A, B = 3, C };  -> registers constants, returns int type.
+  private parseEnumBody(): A.CType {
+    this.expect("enum");
+    if (this.peek().type === "identifier") this.next(); // optional tag
+    if (!this.is("{")) return { kind: "int" }; // bare `enum Name` reference
+    this.expect("{");
+    let next = 0;
+    while (!this.is("}")) {
+      const cname = this.expectIdent();
+      if (this.eat("=")) {
+        next = this.parseConstInt();
+      }
+      this.enumConstants[cname] = next;
+      next++;
+      if (!this.eat(",")) break;
+    }
+    this.expect("}");
+    return { kind: "int" };
   }
 
   // Continues a global variable declaration after the first declarator's
@@ -118,27 +204,6 @@ class Parser {
     return { kind: "VarDecl", declarators, line };
   }
 
-  private parseStructDecl(): A.StructDecl {
-    const line = this.line;
-    this.expect("struct");
-    const name = this.expectIdent();
-    this.structNames.add(name);
-    this.expect("{");
-    const fields: { type: A.CType; name: string }[] = [];
-    while (!this.is("}")) {
-      const base = this.parseBaseType();
-      // Allow multiple fields: int x, y;
-      do {
-        const { type, name: fname } = this.parseDeclaratorType(base);
-        fields.push({ type, name: fname });
-      } while (this.eat(","));
-      this.expect(";");
-    }
-    this.expect("}");
-    this.expect(";");
-    return { kind: "StructDecl", name, fields, line };
-  }
-
   // Continues a function definition after `returnType name` have been parsed.
   private parseFunctionRest(
     returnType: A.CType,
@@ -168,6 +233,7 @@ class Parser {
   private isTypeStart(): boolean {
     const t = this.peek();
     if (t.type === "keyword" && TYPE_KEYWORDS.has(t.value)) return true;
+    if (t.type === "identifier" && this.typedefs.has(t.value)) return true;
     return false;
   }
 
@@ -195,10 +261,16 @@ class Parser {
       this.next();
       return { kind: "void" };
     }
-    if (this.is("struct")) {
+    if (this.is("struct") || this.is("union")) {
+      return this.parseAggregateDecl();
+    }
+    if (this.is("enum")) {
+      return this.parseEnumBody();
+    }
+    // A typedef alias name resolves to its underlying type.
+    if (t.type === "identifier" && this.typedefs.has(t.value)) {
       this.next();
-      const name = this.expectIdent();
-      return { kind: "struct", name };
+      return cloneType(this.typedefs.get(t.value)!);
     }
     throw new ParseError(`expected a type but got '${t.value || "EOF"}'`, t.line);
   }
@@ -579,6 +651,18 @@ class Parser {
     }
     throw new ParseError(`unexpected token '${t.value || "EOF"}'`, line);
   }
+}
+
+// Deep-copy a CType so typedef aliases aren't shared/mutated across uses.
+function cloneType(t: A.CType): A.CType {
+  const c: A.CType = { kind: t.kind };
+  if (t.to) c.to = cloneType(t.to);
+  if (t.of) c.of = cloneType(t.of);
+  if (t.length !== undefined) c.length = t.length;
+  if (t.name !== undefined) c.name = t.name;
+  if (t.ret) c.ret = cloneType(t.ret);
+  if (t.params) c.params = t.params.map(cloneType);
+  return c;
 }
 
 // ---- literal helpers ----
