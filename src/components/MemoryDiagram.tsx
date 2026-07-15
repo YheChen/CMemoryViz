@@ -61,9 +61,7 @@ function routeArrows(raw: { fromY: number; toY: number }[]): {
   const arrows: Arrow[] = [];
   for (const s of spans) {
     let ch = 0;
-    while (
-      channels[ch]?.some((o) => !(s.bot < o.top - 8 || s.top > o.bot + 8))
-    ) {
+    while (channels[ch]?.some((o) => !(s.bot < o.top - 8 || s.top > o.bot + 8))) {
       ch++;
     }
     (channels[ch] ||= []).push({ top: s.top, bot: s.bot });
@@ -108,9 +106,8 @@ function serializeSvg(svgEl: SVGSVGElement): string {
   inlineStyles(svgEl, clone);
   // Solid background so the export is readable anywhere.
   const bgColor =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--bg-panel")
-      .trim() || "#181825";
+    getComputedStyle(document.documentElement).getPropertyValue("--bg-panel").trim() ||
+    "#181825";
   const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   bg.setAttribute("width", "100%");
   bg.setAttribute("height", "100%");
@@ -161,14 +158,17 @@ export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) 
   const built = useMemo(() => (snapshot ? buildGroups(snapshot) : null), [snapshot]);
 
   if (!snapshot || !built) {
-    return <div className="diagram-empty">Run the program to see the memory diagram.</div>;
+    return (
+      <div className="diagram-empty">Run the program to see the memory diagram.</div>
+    );
   }
 
   const { groups, height } = built;
 
   // Map address -> row center y, for arrow targets.
   const addrToY = new Map<number, number>();
-  for (const g of groups) for (const r of g.rows) addrToY.set(r.cell.address, r.y + ROW_H / 2);
+  for (const g of groups)
+    for (const r of g.rows) addrToY.set(r.cell.address, r.y + ROW_H / 2);
 
   // Collect pointer arrows and dangling pointers.
   const rawArrows: { fromY: number; toY: number }[] = [];
@@ -193,10 +193,16 @@ export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) 
   return (
     <div className="diagram-area">
       <div className="diagram-toolbar">
-        <button className="btn mini" onClick={() => svgRef.current && exportSvg(svgRef.current)}>
+        <button
+          className="btn mini"
+          onClick={() => svgRef.current && exportSvg(svgRef.current)}
+        >
           ⭳ SVG
         </button>
-        <button className="btn mini" onClick={() => svgRef.current && exportPng(svgRef.current)}>
+        <button
+          className="btn mini"
+          onClick={() => svgRef.current && exportPng(svgRef.current)}
+        >
           ⭳ PNG
         </button>
       </div>
@@ -223,11 +229,25 @@ export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) 
 
           {/* Header */}
           <g className="diagram-header">
-            <text x={X.section} y={22}>Section</text>
-            <text x={X.addr} y={22}>Address</text>
-            <text x={X.value} y={22}>Value</text>
-            <text x={X.label} y={22}>Label</text>
-            <line x1={0} y1={HEADER_H - 4} x2={X.labelEnd} y2={HEADER_H - 4} className="rule" />
+            <text x={X.section} y={22}>
+              Section
+            </text>
+            <text x={X.addr} y={22}>
+              Address
+            </text>
+            <text x={X.value} y={22}>
+              Value
+            </text>
+            <text x={X.label} y={22}>
+              Label
+            </text>
+            <line
+              x1={0}
+              y1={HEADER_H - 4}
+              x2={X.labelEnd}
+              y2={HEADER_H - 4}
+              className="rule"
+            />
           </g>
 
           {/* Groups */}
@@ -286,10 +306,10 @@ export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) 
                         dangling
                           ? "value value-dangling"
                           : fnName
-                          ? "value value-fn"
-                          : isPointer(r.cell.type)
-                          ? "value value-ptr"
-                          : "value"
+                            ? "value value-fn"
+                            : isPointer(r.cell.type)
+                              ? "value value-ptr"
+                              : "value"
                       }
                     >
                       {formatValue(r.cell, functionAddrs) + (dangling ? " ⚠" : "")}

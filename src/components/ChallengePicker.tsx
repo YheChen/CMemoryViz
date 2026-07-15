@@ -40,7 +40,9 @@ export function ChallengePicker({ onPick }: { onPick: (c: Challenge) => void }) 
             >
               <div className="challenge-item-top">
                 <span className="challenge-title">{c.title}</span>
-                <span className={`challenge-diff diff-${c.difficulty}`}>{c.difficulty}</span>
+                <span className={`challenge-diff diff-${c.difficulty}`}>
+                  {c.difficulty}
+                </span>
               </div>
               <div className="challenge-prompt">{c.prompt}</div>
             </button>

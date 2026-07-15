@@ -269,9 +269,7 @@ export class MemoryModel {
   // shows the block move — the whole point of the "realloc can invalidate your
   // pointer" lesson. Returns the new block.
   reallocHeap(oldAddress: number, elemType: CType, count: number): Block {
-    const old = this.blocks.find(
-      (b) => b.section === "heap" && b.address === oldAddress
-    );
+    const old = this.blocks.find((b) => b.section === "heap" && b.address === oldAddress);
     if (!old) {
       const freed = this.freedRanges.some((r) => r.start === oldAddress);
       throw new Error(

@@ -69,7 +69,10 @@ class BreakSignal {}
 class ContinueSignal {}
 
 class RuntimeError extends Error {
-  constructor(message: string, public line: number) {
+  constructor(
+    message: string,
+    public line: number
+  ) {
     super(message);
   }
 }
@@ -96,7 +99,14 @@ export function run(src: string): RunResult {
       steps: [],
       output: "",
       functionAddrs: {},
-      heap: { events: [], leaks: [], totalAllocs: 0, totalBytes: 0, totalFreed: 0, leakedBytes: 0 },
+      heap: {
+        events: [],
+        leaks: [],
+        totalAllocs: 0,
+        totalBytes: 0,
+        totalFreed: 0,
+        leakedBytes: 0,
+      },
       error: { message: e.message, line: e.line },
     };
   }
@@ -490,7 +500,10 @@ class Interpreter {
         return { type: { kind: "pointer", to: CHAR }, value: block.address };
       }
       case "InitListExpr":
-        throw new RuntimeError("brace initializer is only allowed in a declaration", expr.line);
+        throw new RuntimeError(
+          "brace initializer is only allowed in a declaration",
+          expr.line
+        );
       case "Identifier": {
         if (expr.name === "NULL")
           return { type: { kind: "pointer", to: { kind: "void" } }, value: 0 };
@@ -503,12 +516,19 @@ class Interpreter {
             return {
               type: {
                 kind: "pointer",
-                to: { kind: "func", ret: fn.returnType, params: fn.params.map((p) => p.type) },
+                to: {
+                  kind: "func",
+                  ret: fn.returnType,
+                  params: fn.params.map((p) => p.type),
+                },
               },
               value: addr,
             };
           }
-          throw new RuntimeError(`use of undeclared identifier '${expr.name}'`, expr.line);
+          throw new RuntimeError(
+            `use of undeclared identifier '${expr.name}'`,
+            expr.line
+          );
         }
         if (v.type.kind === "array") {
           // Array decays to a pointer to its first element.
@@ -643,7 +663,10 @@ class Interpreter {
     const s = this.mem.getStruct(structType.name!);
     const field = s.fields.find((f) => f.name === expr.field);
     if (!field) {
-      throw new RuntimeError(`no field '${expr.field}' in struct ${structType.name}`, expr.line);
+      throw new RuntimeError(
+        `no field '${expr.field}' in struct ${structType.name}`,
+        expr.line
+      );
     }
     return { address: baseAddr + field.offset, type: field.type };
   }
@@ -688,27 +711,50 @@ class Interpreter {
     const isF = isFloatType(l.type) || isFloatType(r.type);
     let out: number;
     switch (expr.op) {
-      case "+": out = a + b; break;
-      case "-": out = a - b; break;
-      case "*": out = a * b; break;
+      case "+":
+        out = a + b;
+        break;
+      case "-":
+        out = a - b;
+        break;
+      case "*":
+        out = a * b;
+        break;
       case "/":
         if (b === 0 && !isF) throw new RuntimeError("division by zero", expr.line);
         out = isF ? a / b : Math.trunc(a / b);
         break;
       case "%":
         if (b === 0) throw new RuntimeError("modulo by zero", expr.line);
-        out = a % b; break;
-      case "<": return { type: INT, value: a < b ? 1 : 0 };
-      case ">": return { type: INT, value: a > b ? 1 : 0 };
-      case "<=": return { type: INT, value: a <= b ? 1 : 0 };
-      case ">=": return { type: INT, value: a >= b ? 1 : 0 };
-      case "==": return { type: INT, value: a === b ? 1 : 0 };
-      case "!=": return { type: INT, value: a !== b ? 1 : 0 };
-      case "&": out = a & b; break;
-      case "|": out = a | b; break;
-      case "^": out = a ^ b; break;
-      case "<<": out = a << b; break;
-      case ">>": out = a >> b; break;
+        out = a % b;
+        break;
+      case "<":
+        return { type: INT, value: a < b ? 1 : 0 };
+      case ">":
+        return { type: INT, value: a > b ? 1 : 0 };
+      case "<=":
+        return { type: INT, value: a <= b ? 1 : 0 };
+      case ">=":
+        return { type: INT, value: a >= b ? 1 : 0 };
+      case "==":
+        return { type: INT, value: a === b ? 1 : 0 };
+      case "!=":
+        return { type: INT, value: a !== b ? 1 : 0 };
+      case "&":
+        out = a & b;
+        break;
+      case "|":
+        out = a | b;
+        break;
+      case "^":
+        out = a ^ b;
+        break;
+      case "<<":
+        out = a << b;
+        break;
+      case ">>":
+        out = a >> b;
+        break;
       default:
         throw new RuntimeError(`unsupported operator '${expr.op}'`, expr.line);
     }
@@ -727,7 +773,11 @@ class Interpreter {
             return {
               type: {
                 kind: "pointer",
-                to: { kind: "func", ret: fn.returnType, params: fn.params.map((p) => p.type) },
+                to: {
+                  kind: "func",
+                  ret: fn.returnType,
+                  params: fn.params.map((p) => p.type),
+                },
               },
               value: addr,
             };
@@ -800,9 +850,15 @@ class Interpreter {
         const a = cur.value;
         const b = rhs.value;
         switch (expr.op) {
-          case "+=": value = a + b; break;
-          case "-=": value = a - b; break;
-          case "*=": value = a * b; break;
+          case "+=":
+            value = a + b;
+            break;
+          case "-=":
+            value = a - b;
+            break;
+          case "*=":
+            value = a * b;
+            break;
           case "/=":
             if (b === 0 && !isF) throw new RuntimeError("division by zero", expr.line);
             value = isF ? a / b : Math.trunc(a / b);
@@ -812,7 +868,10 @@ class Interpreter {
             value = a % b;
             break;
           default:
-            throw new RuntimeError(`unsupported assignment operator '${expr.op}'`, expr.line);
+            throw new RuntimeError(
+              `unsupported assignment operator '${expr.op}'`,
+              expr.line
+            );
         }
       }
       value = this.coerce({ type: lv.type, value }, lv.type).value;
@@ -945,7 +1004,8 @@ class Interpreter {
         }
         const v = args[argIdx] ? this.evalExpr(args[argIdx]) : { value: 0, type: INT };
         argIdx++;
-        if (spec === "d" || spec === "i" || spec === "u") out += String(Math.trunc(v.value));
+        if (spec === "d" || spec === "i" || spec === "u")
+          out += String(Math.trunc(v.value));
         else if (spec === "c") out += String.fromCharCode(v.value);
         else if (spec === "s") out += this.readCString(v.value);
         else if (spec === "f") out += v.value.toFixed(6);
@@ -986,7 +1046,8 @@ class Interpreter {
   }
 
   private coerce(v: RValue, target: A.CType): RValue {
-    if (target.kind === "char") return { type: target, value: Math.trunc(v.value) & 0xff };
+    if (target.kind === "char")
+      return { type: target, value: Math.trunc(v.value) & 0xff };
     if (target.kind === "int") return { type: target, value: Math.trunc(v.value) };
     return { type: target, value: v.value };
   }

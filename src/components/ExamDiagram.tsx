@@ -51,7 +51,13 @@ function gradeValue(
     if (m) {
       const body = m[1];
       const code =
-        body === "\\0" ? 0 : body === "\\n" ? 10 : body === "\\t" ? 9 : body.charCodeAt(0);
+        body === "\\0"
+          ? 0
+          : body === "\\n"
+            ? 10
+            : body === "\\t"
+              ? 9
+              : body.charCodeAt(0);
       return code === cell.value;
     }
     return Number(raw) === cell.value;
@@ -213,7 +219,13 @@ export function ExamDiagram({ snapshot, functionAddrs }: Props) {
         if (fromY === undefined || toY === undefined) return null;
         return { a, fromY, toY, top: Math.min(fromY, toY), bot: Math.max(fromY, toY) };
       })
-      .filter(Boolean) as { a: PointerArrow; fromY: number; toY: number; top: number; bot: number }[];
+      .filter(Boolean) as {
+      a: PointerArrow;
+      fromY: number;
+      toY: number;
+      top: number;
+      bot: number;
+    }[];
     spans.sort((p, q) => p.bot - p.top - (q.bot - q.top));
     const channels: { top: number; bot: number }[][] = [];
     const out = spans.map((s) => {
@@ -233,14 +245,14 @@ export function ExamDiagram({ snapshot, functionAddrs }: Props) {
         <span className="exam-hint">
           {pendingFrom !== null ? (
             <>
-              Drawing arrow from <code>{hex(pendingFrom)}</code> — click ◉ on the
-              target row (or the same ◉ to cancel).
+              Drawing arrow from <code>{hex(pendingFrom)}</code> — click ◉ on the target
+              row (or the same ◉ to cancel).
             </>
           ) : (
             <>
-              Fill in each Value (and Label where a variable starts). Write
-              uninitialized memory as <code>???</code>. Draw pointer arrows by
-              clicking ◉ on the pointer row, then ◉ on its target.
+              Fill in each Value (and Label where a variable starts). Write uninitialized
+              memory as <code>???</code>. Draw pointer arrows by clicking ◉ on the pointer
+              row, then ◉ on its target.
             </>
           )}
         </span>
@@ -263,7 +275,8 @@ export function ExamDiagram({ snapshot, functionAddrs }: Props) {
               }
             >
               {grades.right}/{grades.total}
-              {grades.extras > 0 && ` · ${grades.extras} extra arrow${grades.extras > 1 ? "s" : ""}`}
+              {grades.extras > 0 &&
+                ` · ${grades.extras} extra arrow${grades.extras > 1 ? "s" : ""}`}
               {grades.right === grades.total && grades.extras === 0 ? " 🎉" : ""}
             </span>
           )}
@@ -274,7 +287,10 @@ export function ExamDiagram({ snapshot, functionAddrs }: Props) {
               const key = arrowKey(a);
               const wrong = checked && !expectedKeys.has(key);
               return (
-                <span key={key} className={`exam-arrow-chip ${wrong ? "exam-chip-bad" : ""}`}>
+                <span
+                  key={key}
+                  className={`exam-arrow-chip ${wrong ? "exam-chip-bad" : ""}`}
+                >
                   {hex(a.from)} → {hex(a.to)}
                   <button className="exam-chip-x" onClick={() => removeArrow(key)}>
                     ✕
@@ -299,10 +315,7 @@ export function ExamDiagram({ snapshot, functionAddrs }: Props) {
           </thead>
           <tbody>
             {groups.map((g, gi) => {
-              const heading = [
-                g.sectionLabel,
-                g.frameLabel && `frame: ${g.frameLabel}`,
-              ]
+              const heading = [g.sectionLabel, g.frameLabel && `frame: ${g.frameLabel}`]
                 .filter(Boolean)
                 .join(" · ");
               return (
@@ -450,8 +463,8 @@ function FragmentGroup({
                   pendingFrom === null
                     ? "Start drawing an arrow from this row"
                     : pendingFrom === addr
-                    ? "Cancel"
-                    : "Point the arrow at this row"
+                      ? "Cancel"
+                      : "Point the arrow at this row"
                 }
                 onClick={() => onArrowHandle(addr)}
               >

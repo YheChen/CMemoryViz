@@ -4,7 +4,10 @@ import { Token, tokenize } from "./lexer";
 import * as A from "./ast";
 
 export class ParseError extends Error {
-  constructor(message: string, public line: number) {
+  constructor(
+    message: string,
+    public line: number
+  ) {
     super(`Line ${line}: ${message}`);
   }
 }
@@ -53,7 +56,10 @@ class Parser {
   }
   private expect(value: string): Token {
     if (!this.is(value)) {
-      throw new ParseError(`expected '${value}' but got '${this.peek().value || "EOF"}'`, this.line);
+      throw new ParseError(
+        `expected '${value}' but got '${this.peek().value || "EOF"}'`,
+        this.line
+      );
     }
     return this.next();
   }
@@ -134,7 +140,11 @@ class Parser {
   }
 
   // Continues a function definition after `returnType name` have been parsed.
-  private parseFunctionRest(returnType: A.CType, name: string, line: number): A.FunctionDecl {
+  private parseFunctionRest(
+    returnType: A.CType,
+    name: string,
+    line: number
+  ): A.FunctionDecl {
     this.expect("(");
     const params: A.Param[] = [];
     if (!this.is(")")) {
@@ -260,7 +270,10 @@ class Parser {
   private expectIdent(): string {
     const t = this.peek();
     if (t.type !== "identifier") {
-      throw new ParseError(`expected an identifier but got '${t.value || "EOF"}'`, t.line);
+      throw new ParseError(
+        `expected an identifier but got '${t.value || "EOF"}'`,
+        t.line
+      );
     }
     this.next();
     return t.value;
@@ -408,10 +421,7 @@ class Parser {
   private parseAssignment(): A.Expression {
     const left = this.parseBinary(0);
     const t = this.peek();
-    if (
-      t.type === "punct" &&
-      ["=", "+=", "-=", "*=", "/=", "%="].includes(t.value)
-    ) {
+    if (t.type === "punct" && ["=", "+=", "-=", "*=", "/=", "%="].includes(t.value)) {
       const line = t.line;
       this.next();
       const value = this.parseAssignment();
@@ -460,10 +470,7 @@ class Parser {
   private parseUnary(): A.Expression {
     const t = this.peek();
     const line = t.line;
-    if (
-      t.type === "punct" &&
-      ["&", "*", "-", "!", "~", "++", "--"].includes(t.value)
-    ) {
+    if (t.type === "punct" && ["&", "*", "-", "!", "~", "++", "--"].includes(t.value)) {
       this.next();
       const operand = this.parseUnary();
       return { kind: "Unary", op: t.value, operand, line };

@@ -39,9 +39,9 @@ describe("diffSnapshots", () => {
     }`);
     // snapshot before `x = 2` vs snapshot before `return`: only the if ran
     // between decl and assign... find consecutive steps with equal snapshots
-    const diffs = r2.steps.slice(1).map((s, i) =>
-      diffSnapshots(r2.steps[i].snapshot, s.snapshot).size
-    );
+    const diffs = r2.steps
+      .slice(1)
+      .map((s, i) => diffSnapshots(r2.steps[i].snapshot, s.snapshot).size);
     expect(diffs).toContain(0); // the `if` step changed nothing
   });
 });
