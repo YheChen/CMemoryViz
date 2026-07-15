@@ -12,8 +12,10 @@ export const SECTION_GAP = 14;
 export interface DiagramRow {
   cell: Cell;
   blockName?: string; // main label, on the block's first row only
+  ownerName: string; // the block's name, on every row (for hover linking)
   subLabel?: string; // per-cell path like "[2]" or ".x"
   blockId: number;
+  frameId?: number; // owning stack frame, if any
   firstOfBlock: boolean;
   y: number;
 }
@@ -21,6 +23,7 @@ export interface DiagramRow {
 export interface DiagramGroup {
   sectionLabel?: string;
   frameLabel?: string;
+  frameId?: number;
   startY: number;
   endY: number;
   rows: DiagramRow[];
@@ -124,7 +127,8 @@ export function buildGroups(snap: MemorySnapshot): {
   const addGroup = (
     blocks: Block[],
     sectionLabel: string | undefined,
-    frameLabel?: string
+    frameLabel?: string,
+    frameId?: number
   ) => {
     if (blocks.length === 0 && !sectionLabel) return;
     const startY = y;
@@ -141,8 +145,10 @@ export function buildGroups(snap: MemorySnapshot): {
         rows.push({
           cell,
           blockName: i === 0 ? b.name : undefined,
+          ownerName: b.name,
           subLabel,
           blockId: b.id,
+          frameId,
           firstOfBlock: i === 0,
           y,
         });
@@ -153,7 +159,7 @@ export function buildGroups(snap: MemorySnapshot): {
     if (blocks.length === 0) {
       y += ROW_H;
     }
-    groups.push({ sectionLabel, frameLabel, startY, endY: y, rows });
+    groups.push({ sectionLabel, frameLabel, frameId, startY, endY: y, rows });
   };
 
   addGroup(snap.readonly, "Read-only");
@@ -166,7 +172,7 @@ export function buildGroups(snap: MemorySnapshot): {
   y += SECTION_GAP;
 
   snap.frames.forEach((f, idx) => {
-    addGroup(f.blocks, idx === 0 ? "Stack" : undefined, f.frame.funcName);
+    addGroup(f.blocks, idx === 0 ? "Stack" : undefined, f.frame.funcName, f.frame.id);
     y += SECTION_GAP;
   });
 
