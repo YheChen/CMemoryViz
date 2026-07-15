@@ -136,7 +136,9 @@ The interpreter has **zero UI dependencies** — it's plain TypeScript that turn
 
 ## Testing
 
-The interpreter and supporting logic are covered by [Vitest](https://vitest.dev/) — **59 tests** across lexing/parsing/evaluation, the heap lifecycle report, `realloc`/`int **` semantics, share-link round-tripping, diagram diffing, and every bundled challenge. The suite includes a test that reproduces the canonical `sumpairs` midterm diagram address-for-address.
+The interpreter and supporting logic are covered by [Vitest](https://vitest.dev/) — **70+ tests** across lexing/parsing/evaluation, the heap lifecycle report, `realloc`/`int **` semantics, share-link round-tripping, diagram diffing, and every bundled challenge. The suite includes a test that reproduces the canonical `sumpairs` midterm diagram address-for-address.
+
+**Differential testing against a real C compiler.** Because the interpreter is a pure `string → trace` function, a corpus of C programs (`test/corpus/`) is compiled and run with an actual C compiler and the interpreter's `stdout` is asserted to match — ground-truth validation that runs on every CI build (GitHub's runners have `gcc`). Locally it skips gracefully if no compiler is installed.
 
 ```bash
 npm test
