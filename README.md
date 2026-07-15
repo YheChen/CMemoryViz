@@ -7,7 +7,7 @@
 Built for students learning C systems programming (in the style of the University of Toronto's CSC 209 memory diagrams): type code on the left, and a precise `Section / Address / Value / Label` memory diagram builds up on the right as you step through execution — one statement at a time.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen?style=flat-square)](https://c-memory-viz.vercel.app)
-[![Tests](https://img.shields.io/badge/tests-59%20passing-brightgreen?style=flat-square)](#testing)
+[![CI](https://img.shields.io/github/actions/workflow/status/YheChen/CMemoryViz/ci.yml?branch=master&style=flat-square&label=CI)](https://github.com/YheChen/CMemoryViz/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
