@@ -38,12 +38,15 @@ export interface Program extends Node {
   functions: FunctionDecl[];
   structs: StructDecl[];
   globals: VarDecl[];
+  // enum constant name -> integer value (enums are modelled as ints)
+  enumConstants: Record<string, number>;
 }
 
 export interface StructDecl extends Node {
   kind: "StructDecl";
   name: string;
   fields: { type: CType; name: string }[];
+  isUnion?: boolean; // union: all fields overlap at offset 0
 }
 
 export interface Param {

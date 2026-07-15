@@ -97,22 +97,40 @@ export class MemoryModel {
   private blockId = 0;
   private frameId = 0;
 
-  // struct tag -> ordered fields with computed offsets and total size
+  // struct/union tag -> ordered fields with computed offsets and total size
   private structs = new Map<
     string,
-    { fields: { name: string; type: CType; offset: number }[]; size: number }
+    {
+      fields: { name: string; type: CType; offset: number }[];
+      size: number;
+      isUnion: boolean;
+    }
   >();
 
-  registerStruct(name: string, fields: { name: string; type: CType }[]): void {
-    let offset = 0;
+  registerStruct(
+    name: string,
+    fields: { name: string; type: CType }[],
+    isUnion = false
+  ): void {
     const laid: { name: string; type: CType; offset: number }[] = [];
+    if (isUnion) {
+      // Every field overlaps at offset 0; size is the largest field.
+      let max = 0;
+      for (const f of fields) {
+        laid.push({ name: f.name, type: f.type, offset: 0 });
+        max = Math.max(max, this.sizeOf(f.type));
+      }
+      this.structs.set(name, { fields: laid, size: align(max, 4), isUnion: true });
+      return;
+    }
+    let offset = 0;
     for (const f of fields) {
       const a = this.alignOf(f.type);
       offset = align(offset, a);
       laid.push({ name: f.name, type: f.type, offset });
       offset += this.sizeOf(f.type);
     }
-    this.structs.set(name, { fields: laid, size: align(offset, 4) });
+    this.structs.set(name, { fields: laid, size: align(offset, 4), isUnion: false });
   }
 
   getStruct(name: string) {
@@ -183,7 +201,10 @@ export class MemoryModel {
       }
       if (t.kind === "struct") {
         const s = this.getStruct(t.name!);
-        for (const f of s.fields) {
+        // A union stores one representative field (all overlap at offset 0),
+        // so the diagram shows a single, clean cell set.
+        const fields = s.isUnion ? s.fields.slice(0, 1) : s.fields;
+        for (const f of fields) {
           build(addr + f.offset, f.type, `${path}.${f.name}`);
         }
         return addr + s.size;
