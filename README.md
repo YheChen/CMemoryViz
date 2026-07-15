@@ -110,6 +110,26 @@ npm run format        # or: npm run format:check
 npm run build
 ```
 
+## Command-line interface
+
+Because the interpreter and diagram model are UI-free, the same engine drives a
+headless CLI that renders a program's memory diagram straight to **SVG** (or a
+text table) — handy for generating figures for problem sets and slides.
+
+```bash
+# Render the state just before the return on line 10 to an SVG file
+npm run cli -- examples/sumpairs.c --line 10 --note return -o diagram.svg
+
+# Print a plain-text table to the terminal instead
+npm run cli -- examples/sumpairs.c --line 10 --note return --text
+```
+
+```
+-l, --line <n>    state just before source line <n>      -o, --out <file>  write SVG here
+    --note <s>    prefer the step with this note          -t, --text        text table
+-s, --step <n>    render trace step <n> (0-based)         -h, --help        usage
+```
+
 ## Project structure
 
 ```
@@ -120,6 +140,9 @@ src/
 │  ├─ ast.ts             #   AST node & C type definitions
 │  ├─ memory.ts          #   sections, address allocator, typed cell store
 │  └─ interpreter.ts     #   evaluator; snapshots memory before each statement
+├─ render/
+│  └─ svgRenderer.ts     # DOM-free SVG/text renderer (shared by the CLI)
+├─ cli.ts                # headless CLI entry point
 ├─ components/
 │  ├─ CodeEditor.tsx     #   Monaco editor, breakpoints, error squiggles
 │  ├─ MemoryDiagram.tsx  #   SVG diagram renderer + pointer arrows + export
