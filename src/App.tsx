@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CodeEditor } from "./components/CodeEditor";
-import { MemoryDiagram } from "./components/MemoryDiagram";
+import { MemoryDiagram, type Highlight } from "./components/MemoryDiagram";
 import { ExamDiagram } from "./components/ExamDiagram";
+import { CallStackPanel } from "./components/CallStackPanel";
 import { HeapReportPanel } from "./components/HeapReportPanel";
 import { ChallengePicker } from "./components/ChallengePicker";
 import type { Challenge } from "./challenges";
@@ -155,8 +156,16 @@ export default function App() {
   const [breakpoints, setBreakpoints] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | undefined>(undefined);
+  // Cross-highlight target shared by editor, diagram, and call stack.
+  const [highlight, setHighlight] = useState<Highlight | null>(null);
 
   const steps = useMemo(() => result?.steps ?? [], [result]);
+
+  const scrollToFrame = (frameId: number) => {
+    document
+      .querySelector(`[data-frameid="${frameId}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  };
 
   // Restore a shared link: #<base64url state> -> load, run, land on the step.
   useEffect(() => {
@@ -333,6 +342,8 @@ export default function App() {
             breakpoints={breakpoints}
             onToggleBreakpoint={toggleBreakpoint}
             error={error}
+            onHoverIdentifier={(name) => setHighlight(name ? { name } : null)}
+            highlightName={highlight?.name ?? null}
           />
         </div>
         <div className="pane pane-diagram">
@@ -341,6 +352,17 @@ export default function App() {
               ⚠ {error.message}
               {error.line ? ` (line ${error.line})` : ""}
             </div>
+          )}
+          {snapshot && snapshot.frames.length > 0 && (
+            <CallStackPanel
+              frames={snapshot.frames.map((f) => ({
+                id: f.frame.id,
+                funcName: f.frame.funcName,
+              }))}
+              highlightFrameId={highlight?.frameId ?? null}
+              onHoverFrame={(id) => setHighlight(id != null ? { frameId: id } : null)}
+              onSelectFrame={scrollToFrame}
+            />
           )}
           {examMode && snapshot ? (
             <ExamDiagram
@@ -353,6 +375,8 @@ export default function App() {
               snapshot={snapshot}
               functionAddrs={result?.functionAddrs}
               changedAddrs={changedAddrs}
+              highlight={highlight}
+              onHoverBlock={setHighlight}
             />
           )}
           {output && (

@@ -12,6 +12,9 @@ interface Props {
   breakpoints: Set<number>;
   onToggleBreakpoint: (line: number) => void;
   error: { message: string; line?: number } | null;
+  // Cross-highlight with the diagram.
+  onHoverIdentifier?: (name: string | null) => void;
+  highlightName?: string | null;
 }
 
 export function CodeEditor({
@@ -21,14 +24,20 @@ export function CodeEditor({
   breakpoints,
   onToggleBreakpoint,
   error,
+  onHoverIdentifier,
+  highlightName,
 }: Props) {
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const lineDecorations = useRef<string[]>([]);
   const bpDecorations = useRef<string[]>([]);
-  // Keep the latest callback without re-registering the mouse listener.
+  const nameDecorations = useRef<string[]>([]);
+  // Keep the latest callbacks without re-registering the mouse listeners.
   const toggleRef = useRef(onToggleBreakpoint);
   toggleRef.current = onToggleBreakpoint;
+  const hoverRef = useRef(onHoverIdentifier);
+  hoverRef.current = onHoverIdentifier;
+  const lastWord = useRef<string | null>(null);
 
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -43,8 +52,43 @@ export function CodeEditor({
         if (t.position) toggleRef.current(t.position.lineNumber);
       }
     });
+    // Hovering an identifier cross-highlights its cells in the diagram.
+    editor.onMouseMove((e) => {
+      const pos = e.target.position;
+      const word = pos ? (editor.getModel()?.getWordAtPosition(pos)?.word ?? null) : null;
+      if (word !== lastWord.current) {
+        lastWord.current = word;
+        hoverRef.current?.(word);
+      }
+    });
+    editor.onMouseLeave(() => {
+      if (lastWord.current !== null) {
+        lastWord.current = null;
+        hoverRef.current?.(null);
+      }
+    });
     renderBreakpoints();
   };
+
+  // Cross-highlight: underline every occurrence of the hovered variable.
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model || !highlightName) {
+      nameDecorations.current = editor.deltaDecorations(nameDecorations.current, []);
+      return;
+    }
+    const matches = model.findMatches(highlightName, true, false, true, null, false);
+    nameDecorations.current = editor.deltaDecorations(
+      nameDecorations.current,
+      matches.map((m) => ({
+        range: m.range,
+        options: { inlineClassName: "ident-highlight" },
+      }))
+    );
+  }, [highlightName]);
 
   // Highlight the line the interpreter is about to execute.
   useEffect(() => {

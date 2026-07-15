@@ -31,11 +31,19 @@ const CHANNEL_BASE = X.labelEnd + 18;
 const CHANNEL_STEP = 14;
 const BASE_WIDTH = CHANNEL_BASE + 24;
 
+export interface Highlight {
+  name?: string;
+  frameId?: number;
+}
+
 interface Props {
   snapshot: MemorySnapshot | null;
   functionAddrs?: Record<number, string>;
   // Cells that changed in the step being shown (highlighted).
   changedAddrs?: Set<number>;
+  // Cross-highlight with the editor / call-stack panel.
+  highlight?: Highlight | null;
+  onHoverBlock?: (h: Highlight | null) => void;
 }
 
 interface Arrow {
@@ -153,7 +161,13 @@ function exportPng(svgEl: SVGSVGElement) {
 
 // ---------------------------------------------------------------------------
 
-export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) {
+export function MemoryDiagram({
+  snapshot,
+  functionAddrs,
+  changedAddrs,
+  highlight,
+  onHoverBlock,
+}: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const built = useMemo(() => (snapshot ? buildGroups(snapshot) : null), [snapshot]);
 
@@ -252,7 +266,7 @@ export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) 
 
           {/* Groups */}
           {groups.map((g, gi) => (
-            <g key={gi}>
+            <g key={gi} data-frameid={g.frameId}>
               {g.sectionLabel && (
                 <text x={X.section} y={g.startY + 20} className="section-label">
                   {g.sectionLabel}
@@ -280,8 +294,17 @@ export function MemoryDiagram({ snapshot, functionAddrs, changedAddrs }: Props) 
                     ? functionAddrs?.[r.cell.value]
                     : undefined;
                 const changed = changedAddrs?.has(r.cell.address);
+                const highlighted =
+                  highlight != null &&
+                  ((highlight.name != null && r.ownerName === highlight.name) ||
+                    (highlight.frameId != null && r.frameId === highlight.frameId));
                 return (
-                  <g key={ri} className="cell-row">
+                  <g
+                    key={ri}
+                    className={highlighted ? "cell-row row-highlight" : "cell-row"}
+                    onMouseEnter={() => onHoverBlock?.({ name: r.ownerName })}
+                    onMouseLeave={() => onHoverBlock?.(null)}
+                  >
                     <rect
                       x={X.addr - 6}
                       y={r.y + 3}
