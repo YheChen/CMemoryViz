@@ -9,12 +9,19 @@ import * as A from "./ast";
 import { parse } from "./parser";
 import { MemoryModel, MemorySnapshot, typeSize } from "./memory";
 
+// One open file descriptor in a process's fd table.
+export interface FdEntry {
+  fd: number;
+  target: string; // "stdin" | "stdout" | "stderr" | "file:name" | "pipe read" | ...
+}
+
 export interface Step {
   line: number;
   snapshot: MemorySnapshot;
   note?: string;
   callDepth: number;
   output: string;
+  fdTable: FdEntry[];
 }
 
 // A single heap allocation/deallocation, in execution order.
@@ -36,10 +43,24 @@ export interface HeapReport {
   leakedBytes: number;
 }
 
-export interface RunResult {
+// One process's execution (the whole program has >1 of these once fork() runs).
+export interface ProcessResult {
+  pid: number;
+  parentPid: number; // 0 for the root process
+  bornAtLine: number | null; // the fork() line that created it (null for root)
   steps: Step[];
   output: string;
-  // Pseudo-addresses assigned to functions (for function-pointer display).
+  functionAddrs: Record<number, string>;
+  heap: HeapReport;
+  error?: { message: string; line?: number };
+}
+
+export interface RunResult {
+  // All processes, sorted by pid. Without fork(), just the root.
+  processes: ProcessResult[];
+  // The root process's fields, mirrored here for convenience / back-compat.
+  steps: Step[];
+  output: string;
   functionAddrs: Record<number, string>;
   heap: HeapReport;
   error?: { message: string; line?: number };
@@ -93,27 +114,102 @@ function isFloatType(t: A.CType): boolean {
   return t.kind === "float" || t.kind === "double";
 }
 
+const EMPTY_HEAP: HeapReport = {
+  events: [],
+  leaks: [],
+  totalAllocs: 0,
+  totalBytes: 0,
+  totalFreed: 0,
+  leakedBytes: 0,
+};
+
+type ForkBranch = "P" | "C";
+
+// Options threaded from the scheduler into a single process's interpreter.
+interface ProcessOptions {
+  pid: number;
+  parentPid: number;
+  // The fork outcomes that define this process (see the scheduler). Beyond its
+  // length the process acts as a parent (spawning its own children).
+  decisionPath: ForkBranch[];
+  pidForPath: (key: string) => number;
+  spawnChild: (path: ForkBranch[], bornAtLine: number) => void;
+}
+
+const MAX_PROCESSES = 64;
+
 export function run(src: string): RunResult {
   let program: A.Program;
   try {
     program = parse(src);
   } catch (e: any) {
     return {
+      processes: [],
       steps: [],
       output: "",
       functionAddrs: {},
-      heap: {
-        events: [],
-        leaks: [],
-        totalAllocs: 0,
-        totalBytes: 0,
-        totalFreed: 0,
-        leakedBytes: 0,
-      },
+      heap: EMPTY_HEAP,
       error: { message: e.message, line: e.line },
     };
   }
-  return new Interpreter(program).run();
+  return schedule(program);
+}
+
+// Drives all processes. fork() is modelled by re-execution: each process is a
+// full, deterministic run of the program that takes a predetermined branch at
+// each fork() it reaches. A process born on the parent branch of a fork is
+// enqueued and run later, inheriting (by replay) the exact state at the fork.
+function schedule(program: A.Program): RunResult {
+  const processes: ProcessResult[] = [];
+  const pidReg = new Map<string, number>();
+  let nextPid = 1;
+  const pidForPath = (key: string): number => {
+    if (!pidReg.has(key)) pidReg.set(key, nextPid++);
+    return pidReg.get(key)!;
+  };
+  const key = (p: ForkBranch[]) => p.join("");
+  const parentPathOf = (p: ForkBranch[]): ForkBranch[] => {
+    const q = p.slice(0, -1); // drop the trailing 'C'
+    while (q.length && q[q.length - 1] === "P") q.pop();
+    return q;
+  };
+
+  const queued = new Set<string>([""]);
+  const queue: { path: ForkBranch[]; bornAtLine: number | null }[] = [
+    { path: [], bornAtLine: null },
+  ];
+  pidForPath(""); // root = pid 1
+
+  while (queue.length && processes.length < MAX_PROCESSES) {
+    const { path, bornAtLine } = queue.shift()!;
+    const pid = pidForPath(key(path));
+    const parentPid = path.length === 0 ? 0 : pidForPath(key(parentPathOf(path)));
+    const interp = new Interpreter(program, {
+      pid,
+      parentPid,
+      decisionPath: path,
+      pidForPath,
+      spawnChild: (childPath, born) => {
+        const k = key(childPath);
+        if (!queued.has(k)) {
+          queued.add(k);
+          queue.push({ path: childPath, bornAtLine: born });
+        }
+      },
+    });
+    processes.push({ pid, parentPid, bornAtLine, ...interp.runProcess() });
+  }
+
+  processes.sort((a, b) => a.pid - b.pid);
+  const root = processes.find((p) => p.pid === 1) ?? processes[0];
+  return {
+    processes,
+    steps: root.steps,
+    output: root.output,
+    functionAddrs: root.functionAddrs,
+    heap: root.heap,
+    error: root.error,
+  };
 }
 
 class Interpreter {
@@ -132,7 +228,37 @@ class Interpreter {
   private heapEvents: HeapEvent[] = [];
   private liveAllocs = new Map<number, { size: number; line: number }>();
 
-  constructor(private program: A.Program) {}
+  // Process / fork state.
+  private forkCounter = 0;
+  private childPids: number[] = []; // for wait()/waitpid()
+  // File-descriptor table (inherited by children via deterministic replay).
+  private fds = new Map<number, string>([
+    [0, "stdin"],
+    [1, "stdout"],
+    [2, "stderr"],
+  ]);
+
+  constructor(
+    private program: A.Program,
+    private opts: ProcessOptions = {
+      pid: 1,
+      parentPid: 0,
+      decisionPath: [],
+      pidForPath: () => 1,
+      spawnChild: () => {},
+    }
+  ) {}
+
+  private nextFd(): number {
+    let fd = 0;
+    while (this.fds.has(fd)) fd++;
+    return fd;
+  }
+  private fdSnapshot(): FdEntry[] {
+    return [...this.fds.entries()]
+      .map(([fd, target]) => ({ fd, target }))
+      .sort((a, b) => a.fd - b.fd);
+  }
 
   private get enumConstants(): Record<string, number> {
     return this.program.enumConstants ?? {};
@@ -181,8 +307,10 @@ class Interpreter {
     };
   }
 
-  run(): RunResult {
+  // Runs this one process and returns its trace + observable state.
+  runProcess(): Omit<ProcessResult, "pid" | "parentPid" | "bornAtLine"> {
     const functionAddrs: Record<number, string> = {};
+    let error: { message: string; line?: number } | undefined;
     try {
       for (const s of this.program.structs) {
         this.mem.registerStruct(s.name, s.fields, s.isUnion);
@@ -202,21 +330,9 @@ class Interpreter {
       if (e instanceof ReturnSignal) {
         // main returned normally
       } else if (e instanceof RuntimeError) {
-        return {
-          steps: this.steps,
-          output: this.output,
-          functionAddrs,
-          heap: this.buildHeapReport(),
-          error: { message: e.message, line: e.line },
-        };
+        error = { message: e.message, line: e.line };
       } else {
-        return {
-          steps: this.steps,
-          output: this.output,
-          functionAddrs,
-          heap: this.buildHeapReport(),
-          error: { message: String(e?.message ?? e) },
-        };
+        error = { message: String(e?.message ?? e) };
       }
     }
     return {
@@ -224,6 +340,7 @@ class Interpreter {
       output: this.output,
       functionAddrs,
       heap: this.buildHeapReport(),
+      error,
     };
   }
 
@@ -291,6 +408,7 @@ class Interpreter {
       note,
       callDepth: this.envStack.length,
       output: this.output,
+      fdTable: this.fdSnapshot(),
     });
   }
 
@@ -993,6 +1111,8 @@ class Interpreter {
         }
         const str = this.tryStringBuiltin(name, expr);
         if (str) return str;
+        const proc = this.tryProcessBuiltin(name, expr);
+        if (proc) return proc;
       }
     }
 
@@ -1122,6 +1242,97 @@ class Interpreter {
 
   private isAggregate(type: A.CType): boolean {
     return type.kind === "struct";
+  }
+
+  // ---- Process (fork/wait/getpid) and file-descriptor builtins ----
+  private tryProcessBuiltin(name: string, expr: A.Call): RValue | null {
+    switch (name) {
+      case "fork": {
+        const i = this.forkCounter++;
+        // Branches this process takes at forks 0..i-1 (then default parent).
+        const before: ForkBranch[] = [];
+        for (let j = 0; j < i; j++) {
+          before.push(
+            j < this.opts.decisionPath.length ? this.opts.decisionPath[j] : "P"
+          );
+        }
+        const childPath: ForkBranch[] = [...before, "C"];
+        const childPid = this.opts.pidForPath(childPath.join(""));
+        const branch =
+          i < this.opts.decisionPath.length ? this.opts.decisionPath[i] : "P";
+        if (branch === "C") {
+          return { type: INT, value: 0 }; // we are the child
+        }
+        // Parent branch: a child is born here.
+        this.opts.spawnChild(childPath, expr.line);
+        this.childPids.push(childPid);
+        return { type: INT, value: childPid };
+      }
+      case "getpid":
+        return { type: INT, value: this.opts.pid };
+      case "getppid":
+        return { type: INT, value: this.opts.parentPid };
+      case "wait": {
+        // Best-effort: report each child once, then -1. Writes 0 to *status.
+        const pid = this.childPids.shift() ?? -1;
+        if (expr.args[0]) {
+          const p = this.evalExpr(expr.args[0]);
+          if (p.value !== 0 && this.mem.hasCell(p.value)) this.mem.write(p.value, 0);
+        }
+        return { type: INT, value: pid };
+      }
+      case "waitpid": {
+        const want = this.evalExpr(expr.args[0]).value;
+        let pid = -1;
+        const idx =
+          want > 0 ? this.childPids.indexOf(want) : this.childPids.length ? 0 : -1;
+        if (idx >= 0) pid = this.childPids.splice(idx, 1)[0];
+        if (expr.args[1]) {
+          const p = this.evalExpr(expr.args[1]);
+          if (p.value !== 0 && this.mem.hasCell(p.value)) this.mem.write(p.value, 0);
+        }
+        return { type: INT, value: pid };
+      }
+      case "open": {
+        const path = this.readCString(this.evalExpr(expr.args[0]).value) || "file";
+        const fd = this.nextFd();
+        this.fds.set(fd, `file:${path}`);
+        return { type: INT, value: fd };
+      }
+      case "close": {
+        const fd = this.evalExpr(expr.args[0]).value;
+        this.fds.delete(fd);
+        return { type: INT, value: 0 };
+      }
+      case "dup": {
+        const oldfd = this.evalExpr(expr.args[0]).value;
+        if (!this.fds.has(oldfd)) return { type: INT, value: -1 };
+        const fd = this.nextFd();
+        this.fds.set(fd, this.fds.get(oldfd)!);
+        return { type: INT, value: fd };
+      }
+      case "dup2": {
+        const oldfd = this.evalExpr(expr.args[0]).value;
+        const newfd = this.evalExpr(expr.args[1]).value;
+        if (!this.fds.has(oldfd)) return { type: INT, value: -1 };
+        this.fds.set(newfd, this.fds.get(oldfd)!);
+        return { type: INT, value: newfd };
+      }
+      case "pipe": {
+        // pipe(int fds[2]) -> fds[0]=read end, fds[1]=write end
+        const arr = this.evalExpr(expr.args[0]).value;
+        const rfd = this.nextFd();
+        this.fds.set(rfd, "pipe read");
+        const wfd = this.nextFd();
+        this.fds.set(wfd, "pipe write");
+        const intSize = this.mem.sizeOf(INT);
+        if (this.mem.hasCell(arr)) this.mem.write(arr, rfd);
+        if (this.mem.hasCell(arr + intSize)) this.mem.write(arr + intSize, wfd);
+        return { type: INT, value: 0 };
+      }
+      default:
+        return null;
+    }
   }
 
   private doPrintf(args: A.Expression[]) {
