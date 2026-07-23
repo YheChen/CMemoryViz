@@ -4,6 +4,8 @@ import { MemoryDiagram, type Highlight } from "./components/MemoryDiagram";
 import { ExamDiagram } from "./components/ExamDiagram";
 import { CallStackPanel } from "./components/CallStackPanel";
 import { HeapReportPanel } from "./components/HeapReportPanel";
+import { ProcessTree } from "./components/ProcessTree";
+import { FdTablePanel } from "./components/FdTablePanel";
 import { ChallengePicker } from "./components/ChallengePicker";
 import type { Challenge } from "./challenges";
 import { Controls } from "./components/Controls";
@@ -144,6 +146,34 @@ int main() {
     return 0;
 }
 `,
+  "fork (two processes)": `int main() {
+    int x = 10;
+
+    int pid = fork();
+    if (pid == 0) {
+        // Child: has its own copy of x.
+        x = x + 1;
+        printf("child x = %d\\n", x);
+    } else {
+        // Parent: its x is untouched by the child.
+        x = x + 100;
+        printf("parent x = %d\\n", x);
+    }
+    return 0;
+}
+`,
+  "pipe + dup2 (fd table)": `int main() {
+    int fds[2];
+    pipe(fds);
+
+    // Redirect stdout (fd 1) to the write end of the pipe.
+    close(1);
+    dup2(fds[1], 1);
+
+    fork();
+    return 0;
+}
+`,
 };
 
 const DEFAULT_SAMPLE = "sumpairs (midterm)";
@@ -152,6 +182,7 @@ export default function App() {
   const [source, setSource] = useState(SAMPLES[DEFAULT_SAMPLE]);
   const [examMode, setExamMode] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [currentPid, setCurrentPid] = useState<number | null>(null);
   const [stepIndex, setStepIndex] = useState(-1);
   const [breakpoints, setBreakpoints] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
@@ -164,7 +195,12 @@ export default function App() {
     return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
 
-  const steps = useMemo(() => result?.steps ?? [], [result]);
+  // The process currently being viewed (root unless another is selected).
+  const proc = useMemo(() => {
+    if (!result || result.processes.length === 0) return null;
+    return result.processes.find((p) => p.pid === currentPid) ?? result.processes[0];
+  }, [result, currentPid]);
+  const steps = useMemo(() => proc?.steps ?? [], [proc]);
 
   // Apply + persist the theme.
   useEffect(() => {
@@ -187,6 +223,7 @@ export default function App() {
     setExamMode(!!shared.exam);
     const r = run(shared.src);
     setResult(r);
+    setCurrentPid(r.processes[0]?.pid ?? null);
     if (r.steps.length > 0) {
       const target = shared.step ?? r.steps.length - 1;
       setStepIndex(Math.max(0, Math.min(r.steps.length - 1, target)));
@@ -215,6 +252,7 @@ export default function App() {
   const doRun = () => {
     const r = run(source);
     setResult(r);
+    setCurrentPid(r.processes[0]?.pid ?? null);
     if (r.steps.length === 0) {
       setStepIndex(-1);
       return;
@@ -224,6 +262,13 @@ export default function App() {
       ? r.steps.findIndex((s) => breakpoints.has(s.line))
       : -1;
     setStepIndex(bpIdx >= 0 ? bpIdx : r.steps.length - 1);
+  };
+
+  // Switch which process the diagram/stepper shows; land on its final state.
+  const selectProcess = (pid: number) => {
+    setCurrentPid(pid);
+    const p = result?.processes.find((x) => x.pid === pid);
+    setStepIndex(p ? p.steps.length - 1 : -1);
   };
 
   const doContinue = () => {
@@ -288,18 +333,19 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [steps.length]);
 
-  const error = result?.error ?? null;
+  const error = proc?.error ?? null;
   const highlightLine = current?.line ?? error?.line ?? null;
 
   const output = useMemo(() => {
-    if (!result) return "";
-    return current ? current.output : result.output;
-  }, [result, current]);
+    if (!proc) return "";
+    return current ? current.output : proc.output;
+  }, [proc, current]);
 
   const onSourceChange = (v: string) => {
     setSource(v);
     // Old trace no longer matches the code.
     setResult(null);
+    setCurrentPid(null);
     setStepIndex(-1);
   };
 
@@ -401,6 +447,13 @@ export default function App() {
               {error.line ? ` (line ${error.line})` : ""}
             </div>
           )}
+          {result && result.processes.length > 1 && proc && (
+            <ProcessTree
+              processes={result.processes}
+              currentPid={proc.pid}
+              onSelect={selectProcess}
+            />
+          )}
           {snapshot && snapshot.frames.length > 0 && (
             <CallStackPanel
               frames={snapshot.frames.map((f) => ({
@@ -416,26 +469,27 @@ export default function App() {
             <ExamDiagram
               key={stepIndex}
               snapshot={snapshot}
-              functionAddrs={result?.functionAddrs}
+              functionAddrs={proc?.functionAddrs}
             />
           ) : (
             <MemoryDiagram
               snapshot={snapshot}
-              functionAddrs={result?.functionAddrs}
+              functionAddrs={proc?.functionAddrs}
               changedAddrs={changedAddrs}
               highlight={highlight}
               onHoverBlock={setHighlight}
             />
           )}
+          {current && <FdTablePanel fds={current.fdTable} />}
           {output && (
             <div className="stdout">
               <div className="stdout-label">stdout</div>
               <pre>{output}</pre>
             </div>
           )}
-          {result && (
+          {proc && (
             <HeapReportPanel
-              report={result.heap}
+              report={proc.heap}
               currentStep={current ? stepIndex : null}
             />
           )}

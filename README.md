@@ -43,6 +43,8 @@ Because the interpreter records a snapshot **before every statement**, you can s
 | 🔦 **Step-diff highlighting**     | Cells created or changed by the statement that just ran are tinted, so each step's effect on memory is obvious at a glance.                                                                                                  |
 | 🧩 **Pointer arrows**             | Every pointer is drawn to the cell it references, with automatic channel routing to minimize crossings. Dangling pointers are flagged.                                                                                       |
 | 🧪 **Heap report**                | Live allocation tracking: total `malloc`/`free`, bytes live at the current step, and a list of **leaks** (blocks never freed) with the line each was allocated on.                                                           |
+| 🍴 **Process view**               | `fork()` spawns child processes with their own memory; a process tree lets you switch between them and watch parent/child state diverge.                                                                                     |
+| 🗂️ **File-descriptor table**      | `open` / `close` / `dup2` / `pipe` update a per-process fd table shown alongside the diagram.                                                                                                                                |
 | 📝 **Exam mode**                  | Blank out the Value/Label columns and hide the arrows, then fill in the diagram yourself and **Check** it — lenient grading (hex case, `NULL`, `???`, chars) with per-cell and per-arrow feedback, or **Reveal** the answer. |
 | 📚 **Challenge bank**             | Curated, exam-style problems that open directly in exam mode paused at the target line.                                                                                                                                      |
 | 🔗 **Shareable links**            | One click copies a URL that reproduces the exact code, step, and breakpoints — send a classmate "the state before line 8."                                                                                                   |
@@ -82,6 +84,8 @@ The **memory model** uses a deterministic "clean" address allocator so diagrams 
 - **Dynamic memory** — `malloc` / `calloc` / `realloc` / `free`, `sizeof`, casts, and `int **` 2D dynamic arrays
 - **Operators** — arithmetic (float-aware), comparison, logical, bitwise, and pointer arithmetic; `&`, `*`, `[]`, `.`, `->`, pre/post `++`/`--`
 - **Control flow** — `if` / `else`, `while`, `for`, `break`, `continue`
+- **Processes** — `fork`, `getpid`, `getppid`, `wait`, `waitpid`
+- **File descriptors** — `open`, `close`, `dup`, `dup2`, `pipe`
 - **I/O** — `printf` with `%d %i %u %c %s %f %g %p %x %%`, captured to an on-screen stdout; `strlen`
 
 </details>
@@ -173,10 +177,14 @@ The app is a fully static Vite build with no backend, deployed on [Vercel](https
 
 ## Roadmap
 
-- [ ] Hover a variable to highlight its cells (and vice-versa)
-- [ ] More of the C standard library: `strcpy`, `strcat`, `memcpy`
-- [ ] Structs passed/returned by value, `union`, `typedef`
-- [ ] Beyond the memory model: `fork()` / process view, file-descriptor tables
+- [ ] Watch expressions — evaluate `p->next->val` live at any step
+- [ ] More of the C standard library: `memmove`, `snprintf`, `atoi`
+- [ ] `exec*` and richer `pipe` data flow between processes
+
+> **On `fork()`:** processes are modelled by deterministic re-execution — each
+> process is an independent run of the program that takes a fixed branch at each
+> `fork()`. This makes per-process memory and the process tree exact for
+> input-free programs, but does not model concurrent interleaving of output.
 
 ## Contributing
 

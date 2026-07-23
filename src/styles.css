@@ -785,3 +785,93 @@ body {
     fill: #000;
   }
 }
+
+/* Process tree (fork) */
+.proctree {
+  padding: 8px 16px 0;
+  font-size: 13px;
+}
+.proctree-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.proctree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.proc-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-family: "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+.proc-chip:hover {
+  border-color: var(--accent);
+}
+.proc-chip.active {
+  border-color: var(--accent);
+  background: rgba(137, 180, 250, 0.16);
+}
+.proc-pid {
+  font-weight: 700;
+  color: var(--accent);
+}
+.proc-tag {
+  color: var(--fg);
+}
+.proc-tag.muted {
+  color: var(--muted);
+}
+.proc-err {
+  color: var(--danger);
+}
+
+/* File-descriptor table */
+.fdtable {
+  margin: 12px 16px 0;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.fdtable-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.fdtable table {
+  border-collapse: collapse;
+  font-family: "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+}
+.fdtable th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 2px 16px 2px 0;
+}
+.fdtable td {
+  padding: 2px 16px 2px 0;
+}
+.fd-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+.fd-file {
+  color: var(--value-ptr);
+}
+.fd-pipe {
+  color: var(--accent-2);
+}
